@@ -1,0 +1,44 @@
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+export class ApiError extends Error {
+  status: number;
+  code: string;
+
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
+export async function fetchClient<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${BASE_URL}${endpoint}`;
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+
+  const response = await fetch(url, { ...options, headers });
+
+  if (!response.ok) {
+    let errorData;
+    try {
+      errorData = await response.json();
+    } catch {
+      throw new ApiError(response.status, 'UNKNOWN_ERROR', 'An unknown error occurred while parsing the error response');
+    }
+    
+    throw new ApiError(
+      response.status,
+      errorData?.error?.code || 'UNKNOWN_ERROR',
+      errorData?.error?.message || 'An API error occurred'
+    );
+  }
+
+  return response.json();
+}
