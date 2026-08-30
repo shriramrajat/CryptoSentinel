@@ -1,0 +1,132 @@
+"""Service layer for CryptoSentinel scanning and risk analysis."""
+import os
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from ecdat.risk import classify_assets
+from ecdat.scanner import Scanner
+
+SCANNER_VERSION = "0.1.0"
+
+
+class ScannerError(Exception):
+    """Raised when the scanner layer fails unrecoverably."""
+
+
+class AnalysisError(Exception):
+    """Raised when risk analysis fails unrecoverably."""
+
+
+class ScanService:
+    def __init__(self, max_file_size_bytes: int = 10 * 1024 * 1024):
+        self.max_file_size_bytes = max_file_size_bytes
+
+    def run_scan(
+        self,
+        target_path: str,
+        language_filters: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        if not os.path.exists(target_path):
+            raise ValueError(f"Target path does not exist: {target_path}")
+
+        start_time = time.time()
+        target = Path(target_path)
+        effective_root = target if target.is_dir() else target.parent
+
+        try:
+            scanner = Scanner(max_file_size_bytes=self.max_file_size_bytes)
+            all_files = scanner.discover_files(target_path)
+            files = scanner.discover_files(target_path, language_filters=language_filters)
+            assets = []
+            for file_path in files:
+                assets.extend(scanner.scan_file(file_path, root_dir=effective_root))
+        except Exception as exc:
+            raise ScannerError(f"Scanner encountered an internal failure: {exc}") from exc
+
+        try:
+            assessments = classify_assets(assets)
+        except Exception as exc:
+            raise AnalysisError(f"Analysis encountered an internal failure: {exc}") from exc
+
+        assessments_by_id = {assessment.asset_id: assessment for assessment in assessments}
+        findings: List[Dict[str, Any]] = []
+        severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
+        quantum_threat_counts = {"shor": 0, "grover": 0, "none": 0}
+        algorithm_distribution: Dict[str, int] = {}
+
+        for asset in assets:
+            assessment = assessments_by_id.get(asset.asset_id)
+            if assessment is None:
+                severity, quantum_threat, reason, confidence, recommendation = (
+                    "medium", "none", "Unknown algorithm mapped to default risk.", 0.5, None
+                )
+            else:
+                severity = assessment.severity.value
+                quantum_threat = assessment.quantum_threat.value
+                reason = assessment.reason
+                confidence = assessment.confidence
+                recommendation = assessment.pqc_recommendation
+
+            severity_counts[severity] += 1
+            quantum_threat_counts[quantum_threat] += 1
+            algorithm_distribution[asset.algorithm] = algorithm_distribution.get(asset.algorithm, 0) + 1
+
+            evidence = asset.evidence
+            findings.append({
+                "finding_id": asset.asset_id,
+                "algorithm": asset.algorithm,
+                "category": asset.category,
+                "key_length": asset.key_length,
+                "mode": asset.mode,
+                "padding": asset.padding,
+                "file_location": {
+                    "file_path": asset.file_path,
+                    "line_number": asset.line_number,
+                },
+                "evidence": {
+                    # Evidence deliberately uses the canonical asset location;
+                    # the Evidence dataclass stores only snippet/mechanism/rule.
+                    "file_path": asset.file_path,
+                    "line_number": asset.line_number,
+                    "code_snippet": evidence.code_snippet if evidence else "",
+                    "detection_mechanism": evidence.detection_mechanism if evidence else "unknown",
+                    "matched_rule_id": evidence.matched_rule_id if evidence else "unknown",
+                },
+                "risk": {
+                    "severity": severity,
+                    "reason": reason,
+                    "confidence": confidence,
+                    "quantum_threat": quantum_threat,
+                    "pqc_recommendation": (
+                        {
+                            "target_algorithm": recommendation.target_algorithm,
+                            "nist_standard": recommendation.nist_standard,
+                            "migration_type": recommendation.migration_type,
+                        }
+                        if recommendation
+                        else None
+                    ),
+                },
+            })
+
+        return {
+            "summary": {
+                "total_files_discovered": len(all_files),
+                "total_files_scanned": len(files),
+                "files_skipped": len(scanner.skipped_files),
+                "files_failed": len(scanner.errors),
+                "total_crypto_assets": len(assets),
+                "severity_counts": severity_counts,
+                "quantum_threat_counts": quantum_threat_counts,
+                "algorithm_distribution": algorithm_distribution,
+                "quantum_vulnerable_assets": quantum_threat_counts["shor"] + quantum_threat_counts["grover"],
+            },
+            "findings": findings,
+            "errors": scanner.errors,
+            "skipped_files": scanner.skipped_files,
+            "metadata": {
+                "scan_duration_ms": int((time.time() - start_time) * 1000),
+                "scanner_version": SCANNER_VERSION,
+            },
+        }
