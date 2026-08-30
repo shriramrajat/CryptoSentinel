@@ -8,7 +8,7 @@ CryptoSentinel exposes the deterministic scanner and risk engine through a small
 
 ```bash
 pip install -r requirements.txt
-uvicorn api.main:app --app-dir src --reload
+python -m uvicorn api.main:app --app-dir src --reload
 ```
 
 ### Health

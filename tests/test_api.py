@@ -42,7 +42,7 @@ def test_version_endpoint():
 
 def test_invalid_target_path():
     response = client.post("/api/v1/scan", json={"target_path": "/does/not/exist"})
-    assert response.status_code == 200
+    assert response.status_code == 400
     assert response.json()["error"]["code"] == "INVALID_INPUT"
 
 
@@ -67,3 +67,31 @@ def test_language_filter(temp_repo):
     )
     assert response.status_code == 200
     assert all(f["file_location"]["file_path"].endswith(".py") for f in response.json()["findings"])
+
+
+from unittest.mock import patch
+from ecdat.service import ScannerError, AnalysisError
+
+def test_scanner_error_handler():
+    local_client = TestClient(app, raise_server_exceptions=False)
+    with patch("api.routes.ScanService.run_scan", side_effect=ScannerError("mock_scanner_error")):
+        response = local_client.post("/api/v1/scan", json={"target_path": "/fake/path"})
+        assert response.status_code == 500
+        assert response.json()["error"]["code"] == "SCANNER_FAILURE"
+        assert "mock_scanner_error" not in response.json()["error"]["message"]
+
+def test_analysis_error_handler():
+    local_client = TestClient(app, raise_server_exceptions=False)
+    with patch("api.routes.ScanService.run_scan", side_effect=AnalysisError("mock_analysis_error")):
+        response = local_client.post("/api/v1/scan", json={"target_path": "/fake/path"})
+        assert response.status_code == 500
+        assert response.json()["error"]["code"] == "ANALYSIS_FAILURE"
+        assert "mock_analysis_error" not in response.json()["error"]["message"]
+
+def test_global_exception_handler():
+    local_client = TestClient(app, raise_server_exceptions=False)
+    with patch("api.routes.ScanService.run_scan", side_effect=Exception("mock_generic_error")):
+        response = local_client.post("/api/v1/scan", json={"target_path": "/fake/path"})
+        assert response.status_code == 500
+        assert response.json()["error"]["code"] == "INTERNAL_ERROR"
+        assert "mock_generic_error" not in response.json()["error"]["message"]
