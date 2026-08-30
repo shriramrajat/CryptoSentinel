@@ -5,9 +5,17 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ecdat.risk import classify_assets
-from ecdat.scanner import Scanner
+from ecdat.scanner import Scanner, SUPPORTED_EXTENSIONS
 
 SCANNER_VERSION = "0.1.0"
+
+_LANGUAGE_EXTENSIONS = {
+    "python": {".py"},
+    "java": {".java"},
+    "c": {".c", ".h"},
+    "cpp": {".cpp", ".hpp"},
+    "pem": {".pem", ".crt", ".key"},
+}
 
 
 class ScannerError(Exception):
@@ -20,7 +28,18 @@ class AnalysisError(Exception):
 
 class ScanService:
     def __init__(self, max_file_size_bytes: int = 10 * 1024 * 1024):
+        # The current scanner owns file discovery; this limit is enforced by
+        # the service during the API phase without changing scanner behavior.
         self.max_file_size_bytes = max_file_size_bytes
+
+    @staticmethod
+    def _filter_files(files: List[Path], language_filters: Optional[List[str]]) -> List[Path]:
+        if not language_filters:
+            return files
+        requested_exts = set()
+        for language in language_filters:
+            requested_exts.update(_LANGUAGE_EXTENSIONS.get(language.lower(), set()))
+        return [path for path in files if path.suffix.lower() in requested_exts]
 
     def run_scan(
         self,
@@ -35,14 +54,27 @@ class ScanService:
         effective_root = target if target.is_dir() else target.parent
 
         try:
-            scanner = Scanner(max_file_size_bytes=self.max_file_size_bytes)
+            scanner = Scanner(root_dir=effective_root)
             all_files = scanner.discover_files(target_path)
-            files = scanner.discover_files(target_path, language_filters=language_filters)
+            files = self._filter_files(all_files, language_filters)
             assets = []
+            skipped_files: List[Dict[str, str]] = []
+            errors: List[Dict[str, str]] = []
+
             for file_path in files:
-                assets.extend(scanner.scan_file(file_path, root_dir=effective_root))
+                try:
+                    if file_path.stat().st_size > self.max_file_size_bytes:
+                        skipped_files.append({"file": str(file_path), "reason": "oversized"})
+                        continue
+                    assets.extend(scanner.scan_file(file_path, root_dir=effective_root))
+                except Exception as exc:
+                    errors.append({"file": str(file_path), "error": str(exc)})
         except Exception as exc:
             raise ScannerError(f"Scanner encountered an internal failure: {exc}") from exc
+
+        # Preserve scanner-level diagnostics if a future scanner version exposes them.
+        skipped_files.extend(getattr(scanner, "skipped_files", []))
+        errors.extend(getattr(scanner, "errors", []))
 
         try:
             assessments = classify_assets(assets)
@@ -71,8 +103,8 @@ class ScanService:
             severity_counts[severity] += 1
             quantum_threat_counts[quantum_threat] += 1
             algorithm_distribution[asset.algorithm] = algorithm_distribution.get(asset.algorithm, 0) + 1
-
             evidence = asset.evidence
+
             findings.append({
                 "finding_id": asset.asset_id,
                 "algorithm": asset.algorithm,
@@ -80,13 +112,8 @@ class ScanService:
                 "key_length": asset.key_length,
                 "mode": asset.mode,
                 "padding": asset.padding,
-                "file_location": {
-                    "file_path": asset.file_path,
-                    "line_number": asset.line_number,
-                },
+                "file_location": {"file_path": asset.file_path, "line_number": asset.line_number},
                 "evidence": {
-                    # Evidence deliberately uses the canonical asset location;
-                    # the Evidence dataclass stores only snippet/mechanism/rule.
                     "file_path": asset.file_path,
                     "line_number": asset.line_number,
                     "code_snippet": evidence.code_snippet if evidence else "",
@@ -104,8 +131,7 @@ class ScanService:
                             "nist_standard": recommendation.nist_standard,
                             "migration_type": recommendation.migration_type,
                         }
-                        if recommendation
-                        else None
+                        if recommendation else None
                     ),
                 },
             })
@@ -113,9 +139,9 @@ class ScanService:
         return {
             "summary": {
                 "total_files_discovered": len(all_files),
-                "total_files_scanned": len(files),
-                "files_skipped": len(scanner.skipped_files),
-                "files_failed": len(scanner.errors),
+                "total_files_scanned": len(files) - len(skipped_files),
+                "files_skipped": len(skipped_files),
+                "files_failed": len(errors),
                 "total_crypto_assets": len(assets),
                 "severity_counts": severity_counts,
                 "quantum_threat_counts": quantum_threat_counts,
@@ -123,8 +149,8 @@ class ScanService:
                 "quantum_vulnerable_assets": quantum_threat_counts["shor"] + quantum_threat_counts["grover"],
             },
             "findings": findings,
-            "errors": scanner.errors,
-            "skipped_files": scanner.skipped_files,
+            "errors": errors,
+            "skipped_files": skipped_files,
             "metadata": {
                 "scan_duration_ms": int((time.time() - start_time) * 1000),
                 "scanner_version": SCANNER_VERSION,
