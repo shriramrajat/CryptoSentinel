@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { ShieldIcon, SearchIcon, QuantumIcon, CpuIcon, MenuIcon, XIcon } from '../common/Icons';
+import { ShieldIcon, SearchIcon, QuantumIcon, CpuIcon, MenuIcon, XIcon, FileTextIcon } from '../common/Icons';
 import { useScan } from '../../context/ScanContext';
 
 export const Navigation: React.FC = () => {
@@ -17,6 +17,13 @@ export const Navigation: React.FC = () => {
       label: 'Dashboard & Scan',
       icon: <ShieldIcon className="w-4 h-4" />,
       badge: null,
+    },
+    {
+      to: '/results',
+      label: 'Analysis Results',
+      icon: <FileTextIcon className="w-4 h-4" />,
+      badge: findingsCount > 0 ? findingsCount : null,
+      badgeColor: 'bg-emerald-950 text-emerald-300 border-emerald-800',
     },
     {
       to: '/findings',

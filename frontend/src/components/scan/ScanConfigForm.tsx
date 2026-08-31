@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useScan } from '../../context/ScanContext';
 import { Card } from '../common/Card';
 import { Button } from '../common/Button';
@@ -14,6 +15,7 @@ export const ScanConfigForm: React.FC = () => {
     isScanning,
   } = useScan();
 
+  const navigate = useNavigate();
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const availableLanguages = [
@@ -32,14 +34,15 @@ export const ScanConfigForm: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetPath.trim()) {
       setValidationError('Please enter a target path to scan (e.g. absolute folder path or test fixture).');
       return;
     }
     setValidationError(null);
-    executeScan();
+    await executeScan();
+    navigate('/results');
   };
 
   const handleSampleSelect = (samplePath: string) => {
