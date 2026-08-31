@@ -18,47 +18,47 @@ export default function Home() {
   return (
     <div className="space-y-8">
       {/* Intro Hero / Capabilities Overview Header */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6 sm:p-8 relative overflow-hidden">
+      <div className="bg-[#0F1523] border border-[#232B3D] rounded-xl p-6 sm:p-8 relative overflow-hidden">
         <div className="max-w-3xl space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/80 border border-indigo-800/60 text-indigo-300 text-xs font-mono font-medium">
-            <ShieldIcon className="w-3.5 h-3.5 text-indigo-400" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[#00E5FF] text-xs font-mono font-medium">
+            <ShieldIcon className="w-3.5 h-3.5 text-[#00E5FF]" />
             Static Cryptographic Discovery Engine
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA] tracking-tight">
             Cryptographic Inventory & Post-Quantum Risk Analysis
           </h1>
-          <p className="text-sm text-slate-400 leading-relaxed">
+          <p className="text-sm text-[#A3ADBF] leading-relaxed">
             CryptoSentinel recursively scans Python (AST + regex), Java, C/C++, and PEM certificate files to build a precise inventory of cryptographic primitives, key lengths, cipher modes, and NIST PQC migration targets.
           </p>
         </div>
 
         {/* Technical Features Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-800/80 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-[#232B3D] text-xs">
           <div className="flex items-start gap-2.5">
-            <div className="p-1.5 rounded bg-slate-800 text-indigo-400 border border-slate-700 shrink-0">
+            <div className="p-1.5 rounded bg-[#171E2E] text-[#00E5FF] border border-[#232B3D] shrink-0">
               <CodeIcon className="w-4 h-4" />
             </div>
             <div>
-              <span className="font-semibold text-slate-200 block">AST & Regex Parsing</span>
-              <span className="text-slate-400">Context-aware comment filtering & Python AST call graph detection.</span>
+              <span className="font-semibold text-[#F5F7FA] block">AST & Regex Parsing</span>
+              <span className="text-[#A3ADBF]">Context-aware comment filtering & Python AST call graph detection.</span>
             </div>
           </div>
           <div className="flex items-start gap-2.5">
-            <div className="p-1.5 rounded bg-slate-800 text-purple-400 border border-slate-700 shrink-0">
+            <div className="p-1.5 rounded bg-[#171E2E] text-[#7C3AED] border border-[#232B3D] shrink-0">
               <QuantumIcon className="w-4 h-4" />
             </div>
             <div>
-              <span className="font-semibold text-slate-200 block">Post-Quantum Audit</span>
-              <span className="text-slate-400">Evaluates Shor's & Grover's threats against FIPS 203 & 204 standards.</span>
+              <span className="font-semibold text-[#F5F7FA] block">Post-Quantum Audit</span>
+              <span className="text-[#A3ADBF]">Evaluates Shor's & Grover's threats against FIPS 203 & 204 standards.</span>
             </div>
           </div>
           <div className="flex items-start gap-2.5">
-            <div className="p-1.5 rounded bg-slate-800 text-emerald-400 border border-slate-700 shrink-0">
+            <div className="p-1.5 rounded bg-[#171E2E] text-[#00FFA3] border border-[#232B3D] shrink-0">
               <ShieldIcon className="w-4 h-4" />
             </div>
             <div>
-              <span className="font-semibold text-slate-200 block">Deterministic Evidence</span>
-              <span className="text-slate-400">SHA-256 asset IDs, repo-relative paths, and code snippets.</span>
+              <span className="font-semibold text-[#F5F7FA] block">Deterministic Evidence</span>
+              <span className="text-[#A3ADBF]">SHA-256 asset IDs, repo-relative paths, and code snippets.</span>
             </div>
           </div>
         </div>

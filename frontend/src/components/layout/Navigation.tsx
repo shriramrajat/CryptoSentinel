@@ -23,33 +23,33 @@ export const Navigation: React.FC = () => {
       label: 'Analysis Results',
       icon: <FileTextIcon className="w-4 h-4" />,
       badge: findingsCount > 0 ? findingsCount : null,
-      badgeColor: 'bg-emerald-950 text-emerald-300 border-emerald-800',
+      badgeColor: 'bg-[#00FFA3]/10 text-[#00FFA3] border-[#00FFA3]/30',
     },
     {
       to: '/findings',
       label: 'Cryptographic Inventory',
       icon: <SearchIcon className="w-4 h-4" />,
       badge: findingsCount > 0 ? findingsCount : null,
-      badgeColor: 'bg-indigo-950 text-indigo-300 border-indigo-800',
+      badgeColor: 'bg-[#00E5FF]/10 text-[#00E5FF] border-[#00E5FF]/30',
     },
     {
       to: '/quantum',
       label: 'Quantum & PQC Readiness',
       icon: <QuantumIcon className="w-4 h-4" />,
       badge: quantumCount > 0 ? quantumCount : null,
-      badgeColor: 'bg-purple-950 text-purple-300 border-purple-800',
+      badgeColor: 'bg-[#7C3AED]/20 text-[#7C3AED] border-[#7C3AED]/40',
     },
     {
       to: '/diagnostics',
       label: 'Diagnostics',
       icon: <CpuIcon className="w-4 h-4" />,
       badge: warningsCount > 0 ? warningsCount : null,
-      badgeColor: 'bg-amber-950 text-amber-300 border-amber-800',
+      badgeColor: 'bg-[#FF8A00]/10 text-[#FF8A00] border-[#FF8A00]/30',
     },
   ];
 
   return (
-    <nav className="bg-slate-900/80 border-b border-slate-800/80">
+    <nav className="bg-[#0F1523]/80 border-b border-[#232B3D]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Desktop Navigation */}
         <div className="hidden md:flex space-x-1 py-2">
@@ -61,8 +61,8 @@ export const Navigation: React.FC = () => {
               className={({ isActive }) =>
                 `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-slate-800 text-slate-100 border border-slate-700 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    ? 'bg-[#171E2E] text-[#00E5FF] border border-[#00E5FF]/40 shadow-sm'
+                    : 'text-[#A3ADBF] hover:text-[#F5F7FA] hover:bg-[#171E2E]/50'
                 }`
               }
             >
@@ -81,10 +81,10 @@ export const Navigation: React.FC = () => {
 
         {/* Mobile Navigation Bar */}
         <div className="flex md:hidden items-center justify-between py-3">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Navigation</span>
+          <span className="text-xs font-semibold text-[#A3ADBF] uppercase tracking-wider">Navigation</span>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 focus:outline-none"
+            className="p-2 rounded-lg bg-[#171E2E] text-[#F5F7FA] border border-[#232B3D] focus:outline-none focus:ring-2 focus:ring-[#00E5FF]"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <XIcon className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
@@ -93,7 +93,7 @@ export const Navigation: React.FC = () => {
 
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden py-3 border-t border-slate-800 flex flex-col space-y-1">
+          <div className="md:hidden py-3 border-t border-[#232B3D] flex flex-col space-y-1">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -103,8 +103,8 @@ export const Navigation: React.FC = () => {
                 className={({ isActive }) =>
                   `flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium ${
                     isActive
-                      ? 'bg-slate-800 text-slate-100 border border-slate-700'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                      ? 'bg-[#171E2E] text-[#00E5FF] border border-[#00E5FF]/40'
+                      : 'text-[#A3ADBF] hover:text-[#F5F7FA] hover:bg-[#171E2E]/40'
                   }`
                 }
               >

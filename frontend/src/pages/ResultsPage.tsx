@@ -88,8 +88,8 @@ export default function ResultsPage() {
 
       {/* 2. What Cryptographic Usage Was Discovered? */}
       <div className="space-y-4">
-        <h3 className="text-base font-bold text-slate-100 tracking-tight flex items-center gap-2">
-          <ShieldIcon className="w-5 h-5 text-indigo-400" />
+        <h3 className="text-base font-bold text-[#F5F7FA] tracking-tight flex items-center gap-2">
+          <ShieldIcon className="w-5 h-5 text-[#00E5FF]" />
           Discovery Overview & Risk Profile
         </h3>
         <OverviewMetrics summary={scanResponse.summary} metadata={scanResponse.metadata} />
@@ -103,25 +103,25 @@ export default function ResultsPage() {
       {/* 3 & 4 & 5. What Requires Attention? Evidence & Findings Inspection */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h3 className="text-base font-bold text-slate-100 tracking-tight flex items-center gap-2">
-            <QuantumIcon className="w-5 h-5 text-purple-400" />
+          <h3 className="text-base font-bold text-[#F5F7FA] tracking-tight flex items-center gap-2">
+            <QuantumIcon className="w-5 h-5 text-[#7C3AED]" />
             Cryptographic Assets & Evidence Inventory ({filteredFindings.length})
           </h3>
 
           {/* View Mode Switcher */}
-          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 p-1 rounded-lg self-start sm:self-auto">
+          <div className="flex items-center gap-2 bg-[#070B14] border border-[#232B3D] p-1 rounded-lg self-start sm:self-auto">
             <button
               onClick={() => setViewMode('table')}
-              className={`px-2.5 py-1 text-xs font-mono rounded cursor-pointer ${
-                viewMode === 'table' ? 'bg-slate-800 text-slate-100 font-bold' : 'text-slate-400 hover:text-slate-200'
+              className={`px-2.5 py-1 text-xs font-mono rounded cursor-pointer transition-colors ${
+                viewMode === 'table' ? 'bg-[#171E2E] text-[#00E5FF] font-bold border border-[#00E5FF]/30' : 'text-[#A3ADBF] hover:text-[#F5F7FA]'
               }`}
             >
               Table View
             </button>
             <button
               onClick={() => setViewMode('cards')}
-              className={`px-2.5 py-1 text-xs font-mono rounded cursor-pointer ${
-                viewMode === 'cards' ? 'bg-slate-800 text-slate-100 font-bold' : 'text-slate-400 hover:text-slate-200'
+              className={`px-2.5 py-1 text-xs font-mono rounded cursor-pointer transition-colors ${
+                viewMode === 'cards' ? 'bg-[#171E2E] text-[#00E5FF] font-bold border border-[#00E5FF]/30' : 'text-[#A3ADBF] hover:text-[#F5F7FA]'
               }`}
             >
               Card View
@@ -133,7 +133,7 @@ export default function ResultsPage() {
         <Card>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
             <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#A3ADBF]">
                 <SearchIcon className="w-4 h-4" />
               </div>
               <input
@@ -141,16 +141,16 @@ export default function ResultsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by algorithm, path, rule ID, or code snippet..."
-                className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full pl-9 pr-4 py-2 bg-[#070B14] border border-[#232B3D] rounded-lg text-xs text-[#F5F7FA] placeholder-[#A3ADBF]/60 focus:outline-none focus:border-[#00E5FF]"
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <FilterIcon className="w-3.5 h-3.5 text-slate-400" />
+              <FilterIcon className="w-3.5 h-3.5 text-[#A3ADBF]" />
               <select
                 value={severityFilter}
                 onChange={(e) => setSeverityFilter(e.target.value)}
-                className="bg-slate-950 border border-slate-800 text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+                className="bg-[#070B14] border border-[#232B3D] text-xs text-[#A3ADBF] rounded-lg px-3 py-2 focus:outline-none focus:border-[#00E5FF]"
               >
                 <option value="all">All Severities</option>
                 <option value="critical">Critical</option>
@@ -163,7 +163,7 @@ export default function ResultsPage() {
               <select
                 value={quantumFilter}
                 onChange={(e) => setQuantumFilter(e.target.value)}
-                className="bg-slate-950 border border-slate-800 text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+                className="bg-[#070B14] border border-[#232B3D] text-xs text-[#A3ADBF] rounded-lg px-3 py-2 focus:outline-none focus:border-[#00E5FF]"
               >
                 <option value="all">All Quantum Threats</option>
                 <option value="shor">Shor Threat</option>
@@ -204,7 +204,7 @@ export default function ResultsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                  <tr className="bg-[#070B14] border-b border-[#232B3D] text-[#A3ADBF] font-semibold uppercase tracking-wider">
                     <th className="py-3 px-4">Severity</th>
                     <th className="py-3 px-4">Algorithm</th>
                     <th className="py-3 px-4">Category</th>
@@ -213,26 +213,26 @@ export default function ResultsPage() {
                     <th className="py-3 px-4 text-right">Evidence</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 font-sans">
+                <tbody className="divide-y divide-[#232B3D] font-sans">
                   {filteredFindings.map((finding) => (
                     <tr
                       key={finding.finding_id}
                       onClick={() => setSelectedFinding(finding)}
-                      className="hover:bg-slate-800/40 cursor-pointer transition-colors"
+                      className="hover:bg-[#171E2E]/60 cursor-pointer transition-colors"
                     >
                       <td className="py-3 px-4">
                         <Badge variant="severity" severity={finding.risk.severity as any}>
                           {finding.risk.severity}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-100">
+                      <td className="py-3 px-4 font-mono font-bold text-[#F5F7FA]">
                         {finding.algorithm}
                         {finding.key_length && (
-                          <span className="text-[10px] text-slate-400 font-normal ml-1">({finding.key_length}b)</span>
+                          <span className="text-[10px] text-[#A3ADBF] font-normal ml-1">({finding.key_length}b)</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-slate-300 font-mono text-[11px]">{finding.category}</td>
-                      <td className="py-3 px-4 font-mono text-indigo-300">
+                      <td className="py-3 px-4 text-[#A3ADBF] font-mono text-[11px]">{finding.category}</td>
+                      <td className="py-3 px-4 font-mono text-[#00E5FF]">
                         {finding.file_location.file_path}:{finding.file_location.line_number}
                       </td>
                       <td className="py-3 px-4">
@@ -241,7 +241,7 @@ export default function ResultsPage() {
                         </Badge>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className="text-indigo-400 hover:text-indigo-300 text-xs font-mono">
+                        <span className="text-[#00E5FF] hover:text-[#00B8D4] text-xs font-mono">
                           Inspect &rarr;
                         </span>
                       </td>
@@ -256,7 +256,7 @@ export default function ResultsPage() {
 
       {/* 6. What Should the Organization Do Next? */}
       <div className="space-y-4">
-        <h3 className="text-base font-bold text-slate-100 tracking-tight">
+        <h3 className="text-base font-bold text-[#F5F7FA] tracking-tight">
           Next Steps & PQC Remediation Roadmap
         </h3>
         <RemediationPlanCard findings={findings} onSelectFinding={setSelectedFinding} />

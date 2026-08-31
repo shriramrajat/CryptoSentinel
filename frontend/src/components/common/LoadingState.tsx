@@ -23,22 +23,22 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
 
   return (
     <div
-      className={`border border-indigo-900/50 bg-indigo-950/20 rounded-xl p-8 text-center flex flex-col items-center justify-center ${className}`}
+      className={`border border-[#00E5FF]/30 bg-[#0F1523] rounded-xl p-8 text-center flex flex-col items-center justify-center ${className}`}
     >
       <div className="relative mb-5">
-        <div className="w-14 h-14 rounded-full bg-indigo-900/40 border border-indigo-500/50 flex items-center justify-center text-indigo-400 animate-pulse">
-          <CpuIcon className="w-7 h-7 text-indigo-400" />
+        <div className="w-14 h-14 rounded-full bg-[#171E2E] border border-[#00E5FF]/40 flex items-center justify-center text-[#00E5FF] animate-pulse">
+          <CpuIcon className="w-7 h-7 text-[#00E5FF]" />
         </div>
-        <div className="absolute -bottom-1 -right-1 bg-indigo-600 text-white text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full">
+        <div className="absolute -bottom-1 -right-1 bg-[#00E5FF] text-[#070B14] text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full">
           {elapsedSeconds}s
         </div>
       </div>
-      <h3 className="text-base font-semibold text-slate-100 mb-1">{message}</h3>
-      <p className="text-xs text-slate-400 max-w-lg mb-4">{subtext}</p>
+      <h3 className="text-base font-semibold text-[#F5F7FA] mb-1">{message}</h3>
+      <p className="text-xs text-[#A3ADBF] max-w-lg mb-4">{subtext}</p>
       
       {/* Dynamic Progress Bar Placeholder */}
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-full h-2 overflow-hidden">
-        <div className="bg-indigo-500 h-full rounded-full animate-pulse w-3/4" />
+      <div className="w-full max-w-md bg-[#070B14] border border-[#232B3D] rounded-full h-2 overflow-hidden">
+        <div className="bg-[#00E5FF] h-full rounded-full animate-pulse w-3/4" />
       </div>
     </div>
   );

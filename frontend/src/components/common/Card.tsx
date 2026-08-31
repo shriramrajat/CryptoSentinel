@@ -17,18 +17,18 @@ export const Card: React.FC<CardProps> = ({
 }) => {
   return (
     <div
-      className={`bg-slate-900 border border-slate-800/80 rounded-xl shadow-lg transition-all ${
-        hoverable ? 'hover:border-slate-700/80 hover:bg-slate-900/90' : ''
+      className={`bg-[#0F1523] border border-[#232B3D] rounded-xl transition-all ${
+        hoverable ? 'hover:border-[#00E5FF]/40 hover:bg-[#171E2E]' : ''
       } ${className}`}
     >
       {header && (
-        <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-[#232B3D] flex items-center justify-between">
           {header}
         </div>
       )}
       <div className="p-5">{children}</div>
       {footer && (
-        <div className="px-5 py-3 border-t border-slate-800/80 bg-slate-950/40 rounded-b-xl">
+        <div className="px-5 py-3 border-t border-[#232B3D] bg-[#070B14]/40 rounded-b-xl">
           {footer}
         </div>
       )}
