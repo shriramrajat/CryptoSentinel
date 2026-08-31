@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { Finding } from '../../types/api';
 import { Badge } from '../common/Badge';
 import { CodeBlock } from '../common/CodeBlock';
@@ -10,6 +10,18 @@ interface FindingDetailDrawerProps {
 }
 
 export const FindingDetailDrawer: React.FC<FindingDetailDrawerProps> = ({ finding, onClose }) => {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    if (finding) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [finding, onClose]);
+
   if (!finding) return null;
 
   return (
