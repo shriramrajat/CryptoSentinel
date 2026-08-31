@@ -41,3 +41,6 @@ python -m uvicorn api.main:app --app-dir src --reload
 The backend API contract is explicitly defined and frozen. Frontend developers must build against this contract.
 The contract documentation is located at:
 [`../Docs/FRONTEND.md`](../Docs/FRONTEND.md)
+
+## Deployment Limitation: Local Filesystem Scanning
+The current backend API accepts a `target_path` and scans files accessible to its own local filesystem process. A deployed browser frontend cannot provide a user's local filesystem path to a remote backend. The current scanning workflow is suitable for local deployment or demos where the backend has access to the target path. Remote repository ingestion (e.g., GitHub integration or file uploads) is a future product capability.
