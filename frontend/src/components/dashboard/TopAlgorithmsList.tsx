@@ -11,17 +11,17 @@ export const TopAlgorithmsList: React.FC<TopAlgorithmsListProps> = ({ algorithmD
   return (
     <Card
       header={
-        <h3 className="font-bold text-slate-100 text-sm tracking-wide">Detected Cryptographic Primitives</h3>
+        <h3 className="font-bold text-[#F5F7FA] text-sm tracking-wide">Detected Cryptographic Primitives</h3>
       }
     >
       {entries.length === 0 ? (
-        <p className="text-xs text-slate-500 italic">No algorithms detected</p>
+        <p className="text-xs text-[#A3ADBF] italic">No algorithms detected</p>
       ) : (
-        <div className="divide-y divide-slate-800/60">
+        <div className="divide-y divide-[#232B3D]">
           {entries.map(([algo, count]) => (
             <div key={algo} className="py-2.5 flex items-center justify-between text-xs">
-              <span className="font-mono font-semibold text-indigo-300">{algo}</span>
-              <span className="bg-slate-800 text-slate-300 font-mono px-2 py-0.5 rounded border border-slate-700">
+              <span className="font-mono font-semibold text-[#00E5FF]">{algo}</span>
+              <span className="bg-[#171E2E] text-[#F5F7FA] font-mono px-2 py-0.5 rounded border border-[#232B3D]">
                 {count} {count === 1 ? 'instance' : 'instances'}
               </span>
             </div>

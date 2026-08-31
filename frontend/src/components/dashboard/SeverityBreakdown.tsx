@@ -21,7 +21,7 @@ export const SeverityBreakdown: React.FC<SeverityBreakdownProps> = ({ summary })
   return (
     <Card
       header={
-        <h3 className="font-bold text-slate-100 text-sm tracking-wide">Risk Severity Distribution</h3>
+        <h3 className="font-bold text-[#F5F7FA] text-sm tracking-wide">Risk Severity Distribution</h3>
       }
     >
       <div className="space-y-3">
@@ -33,22 +33,22 @@ export const SeverityBreakdown: React.FC<SeverityBreakdownProps> = ({ summary })
                 <Badge variant="severity" severity={item.key as any}>
                   {item.label}
                 </Badge>
-                <span className="font-mono text-slate-300 font-medium">
+                <span className="font-mono text-[#F5F7FA] font-medium">
                   {item.count} ({pct}%)
                 </span>
               </div>
-              <div className="w-full bg-slate-950 border border-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div className="w-full bg-[#070B14] border border-[#232B3D] rounded-full h-1.5 overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
                     item.key === 'critical'
-                      ? 'bg-red-500'
+                      ? 'bg-[#FF3B30]'
                       : item.key === 'high'
-                      ? 'bg-amber-500'
+                      ? 'bg-[#FF8A00]'
                       : item.key === 'medium'
-                      ? 'bg-yellow-500'
+                      ? 'bg-[#FFD60A]'
                       : item.key === 'low'
-                      ? 'bg-emerald-500'
-                      : 'bg-cyan-500'
+                      ? 'bg-[#00C853]'
+                      : 'bg-[#3B82F6]'
                   }`}
                   style={{ width: `${pct}%` }}
                 />

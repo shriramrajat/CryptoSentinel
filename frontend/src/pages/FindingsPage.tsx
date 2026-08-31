@@ -69,7 +69,7 @@ export default function FindingsPage() {
         title="Cryptographic Assets Inventory"
         subtitle={`Showing ${filteredFindings.length} of ${findings.length} total discovered assets.`}
         badge={
-          <span className="bg-indigo-950 text-indigo-300 border border-indigo-800 text-xs font-mono px-2 py-0.5 rounded-full">
+          <span className="bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/30 text-xs font-mono px-2 py-0.5 rounded-full">
             {findings.length} Assets
           </span>
         }
@@ -80,7 +80,7 @@ export default function FindingsPage() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
           {/* Keyword Search Input */}
           <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#A3ADBF]">
               <SearchIcon className="w-4 h-4" />
             </div>
             <input
@@ -88,17 +88,17 @@ export default function FindingsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Filter by algorithm, file path, rule ID, or snippet..."
-              className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full pl-9 pr-4 py-2 bg-[#070B14] border border-[#232B3D] rounded-lg text-xs text-[#F5F7FA] placeholder-[#A3ADBF]/60 focus:outline-none focus:border-[#00E5FF] transition-colors"
             />
           </div>
 
           {/* Severity Select */}
           <div className="flex items-center gap-2">
-            <FilterIcon className="w-3.5 h-3.5 text-slate-400" />
+            <FilterIcon className="w-3.5 h-3.5 text-[#A3ADBF]" />
             <select
               value={severityFilter}
               onChange={(e) => setSeverityFilter(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+              className="bg-[#070B14] border border-[#232B3D] text-xs text-[#A3ADBF] rounded-lg px-3 py-2 focus:outline-none focus:border-[#00E5FF]"
             >
               <option value="all">All Severities</option>
               <option value="critical">Critical</option>
@@ -112,7 +112,7 @@ export default function FindingsPage() {
             <select
               value={quantumFilter}
               onChange={(e) => setQuantumFilter(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+              className="bg-[#070B14] border border-[#232B3D] text-xs text-[#A3ADBF] rounded-lg px-3 py-2 focus:outline-none focus:border-[#00E5FF]"
             >
               <option value="all">All Quantum Threats</option>
               <option value="shor">Shor Threat (Asymmetric)</option>
@@ -147,7 +147,7 @@ export default function FindingsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                <tr className="bg-[#070B14] border-b border-[#232B3D] text-[#A3ADBF] font-semibold uppercase tracking-wider">
                   <th className="py-3 px-4">Severity</th>
                   <th className="py-3 px-4">Algorithm</th>
                   <th className="py-3 px-4">Category</th>
@@ -156,15 +156,15 @@ export default function FindingsPage() {
                   <th className="py-3 px-4 text-right">Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 font-sans">
+              <tbody className="divide-y divide-[#232B3D] font-sans">
                 {filteredFindings.map((item) => {
                   const isExpanded = expandedId === item.finding_id;
                   return (
                     <React.Fragment key={item.finding_id}>
                       <tr
                         onClick={() => toggleExpand(item.finding_id)}
-                        className={`hover:bg-slate-800/40 cursor-pointer transition-colors ${
-                          isExpanded ? 'bg-slate-800/50' : ''
+                        className={`hover:bg-[#171E2E]/60 cursor-pointer transition-colors ${
+                          isExpanded ? 'bg-[#171E2E]/80' : ''
                         }`}
                       >
                         <td className="py-3 px-4">
@@ -172,18 +172,18 @@ export default function FindingsPage() {
                             {item.risk.severity}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4 font-mono font-bold text-slate-100">
+                        <td className="py-3 px-4 font-mono font-bold text-[#F5F7FA]">
                           {item.algorithm}
                           {item.key_length && (
-                            <span className="text-[10px] text-slate-400 font-normal ml-1">
+                            <span className="text-[10px] text-[#A3ADBF] font-normal ml-1">
                               ({item.key_length} bits)
                             </span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-slate-300 font-mono text-[11px]">{item.category}</td>
-                        <td className="py-3 px-4 font-mono text-slate-300">
-                          <span className="text-indigo-300">{item.file_location.file_path}</span>
-                          <span className="text-slate-500 ml-1">:{item.file_location.line_number}</span>
+                        <td className="py-3 px-4 text-[#A3ADBF] font-mono text-[11px]">{item.category}</td>
+                        <td className="py-3 px-4 font-mono text-[#A3ADBF]">
+                          <span className="text-[#00E5FF]">{item.file_location.file_path}</span>
+                          <span className="text-[#FF8A00] font-bold ml-1">:{item.file_location.line_number}</span>
                         </td>
                         <td className="py-3 px-4">
                           <Badge variant="quantum" quantumThreat={item.risk.quantum_threat as any}>
@@ -191,7 +191,7 @@ export default function FindingsPage() {
                           </Badge>
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <span className="text-slate-500 hover:text-slate-300 text-xs font-mono inline-flex items-center gap-1">
+                          <span className="text-[#00E5FF] hover:text-[#00B8D4] text-xs font-mono inline-flex items-center gap-1">
                             {isExpanded ? 'Collapse' : 'Inspect'}
                             <ChevronRightIcon
                               className={`w-3.5 h-3.5 transform transition-transform ${
@@ -204,41 +204,41 @@ export default function FindingsPage() {
 
                       {/* Expanded Evidence & PQC Drawer */}
                       {isExpanded && (
-                        <tr className="bg-slate-950/80 border-b border-slate-800">
+                        <tr className="bg-[#070B14]/90 border-b border-[#232B3D]">
                           <td colSpan={6} className="p-4 space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {/* Left Pane: Finding Reasoning & Attributes */}
                               <div className="space-y-3">
                                 <div>
-                                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                                  <span className="text-[11px] font-semibold text-[#A3ADBF] uppercase tracking-wider block mb-1">
                                     Risk Rationale & Analysis
                                   </span>
-                                  <p className="text-xs text-slate-200 bg-slate-900 border border-slate-800 p-2.5 rounded-lg leading-relaxed">
+                                  <p className="text-xs text-[#F5F7FA] bg-[#070B14] border border-[#232B3D] p-2.5 rounded-lg leading-relaxed">
                                     {item.risk.reason}
                                   </p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                                  <div className="bg-slate-900 border border-slate-800 p-2 rounded">
-                                    <span className="text-slate-500 block text-[10px]">ASSET ID</span>
-                                    <span className="text-slate-300 truncate block" title={item.finding_id}>
+                                  <div className="bg-[#171E2E] border border-[#232B3D] p-2 rounded">
+                                    <span className="text-[#A3ADBF] block text-[10px]">ASSET ID</span>
+                                    <span className="text-[#F5F7FA] truncate block" title={item.finding_id}>
                                       {item.finding_id}
                                     </span>
                                   </div>
-                                  <div className="bg-slate-900 border border-slate-800 p-2 rounded">
-                                    <span className="text-slate-500 block text-[10px]">CONFIDENCE</span>
-                                    <span className="text-slate-300 block">{Math.round(item.risk.confidence * 100)}%</span>
+                                  <div className="bg-[#171E2E] border border-[#232B3D] p-2 rounded">
+                                    <span className="text-[#A3ADBF] block text-[10px]">CONFIDENCE</span>
+                                    <span className="text-[#F5F7FA] block">{Math.round(item.risk.confidence * 100)}%</span>
                                   </div>
                                   {item.mode && (
-                                    <div className="bg-slate-900 border border-slate-800 p-2 rounded">
-                                      <span className="text-slate-500 block text-[10px]">CIPHER MODE</span>
-                                      <span className="text-slate-300 block">{item.mode}</span>
+                                    <div className="bg-[#171E2E] border border-[#232B3D] p-2 rounded">
+                                      <span className="text-[#A3ADBF] block text-[10px]">CIPHER MODE</span>
+                                      <span className="text-[#F5F7FA] block">{item.mode}</span>
                                     </div>
                                   )}
                                   {item.padding && (
-                                    <div className="bg-slate-900 border border-slate-800 p-2 rounded">
-                                      <span className="text-slate-500 block text-[10px]">PADDING</span>
-                                      <span className="text-slate-300 block">{item.padding}</span>
+                                    <div className="bg-[#171E2E] border border-[#232B3D] p-2 rounded">
+                                      <span className="text-[#A3ADBF] block text-[10px]">PADDING</span>
+                                      <span className="text-[#F5F7FA] block">{item.padding}</span>
                                     </div>
                                   )}
                                 </div>
@@ -247,7 +247,7 @@ export default function FindingsPage() {
                               {/* Right Pane: Code Snippet & PQC Target */}
                               <div className="space-y-3">
                                 <div>
-                                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                                  <span className="text-[11px] font-semibold text-[#A3ADBF] uppercase tracking-wider block mb-1">
                                     Code Evidence Line
                                   </span>
                                   <CodeBlock
@@ -259,19 +259,19 @@ export default function FindingsPage() {
                                 </div>
 
                                 {item.risk.pqc_recommendation && (
-                                  <div className="bg-purple-950/40 border border-purple-900/60 rounded-lg p-3 space-y-1">
+                                  <div className="bg-[#7C3AED]/15 border border-[#7C3AED]/40 rounded-lg p-3 space-y-1">
                                     <div className="flex items-center justify-between text-xs">
-                                      <span className="font-semibold text-purple-200">
+                                      <span className="font-semibold text-[#7C3AED]">
                                         NIST PQC Migration Path
                                       </span>
-                                      <span className="bg-purple-900 text-purple-300 text-[10px] font-mono px-1.5 py-0.2 rounded">
+                                      <span className="bg-[#7C3AED]/30 text-[#F5F7FA] text-[10px] font-mono px-1.5 py-0.2 rounded border border-[#7C3AED]/50">
                                         {item.risk.pqc_recommendation.nist_standard}
                                       </span>
                                     </div>
-                                    <p className="text-xs text-purple-300 font-mono">
-                                      Target Algorithm: <strong className="text-white">{item.risk.pqc_recommendation.target_algorithm}</strong>
+                                    <p className="text-xs text-[#F5F7FA] font-mono">
+                                      Target Algorithm: <strong className="text-[#00FFA3]">{item.risk.pqc_recommendation.target_algorithm}</strong>
                                     </p>
-                                    <p className="text-[11px] text-purple-300/80">
+                                    <p className="text-[11px] text-[#A3ADBF]">
                                       Migration Strategy: {item.risk.pqc_recommendation.migration_type}
                                     </p>
                                   </div>
