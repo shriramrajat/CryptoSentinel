@@ -42,3 +42,16 @@ export async function fetchClient<T>(
 
   return response.json();
 }
+
+import type { ScanRequest, ScanResponse } from '../types/api';
+
+export const scanApi = {
+  getHealth: () => fetchClient<{ status: string }>('/health'),
+  getVersion: () => fetchClient<{ version: string }>('/version'),
+  runScan: (request: ScanRequest) =>
+    fetchClient<ScanResponse>('/api/v1/scan', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    }),
+};
+
