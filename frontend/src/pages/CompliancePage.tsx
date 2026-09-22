@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ShieldIcon } from '../components/common/Icons';
+import { fetchClient } from '../api/client';
 
 interface Requirement {
   id: string;
@@ -34,9 +35,10 @@ export const CompliancePage: React.FC = () => {
   const fetchComplianceData = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/v1/compliance/requirements');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await fetchClient<{
+        requirements: Requirement[];
+        summary?: Summary;
+      }>('/api/v1/compliance/requirements');
       setRequirements(data.requirements || []);
       setSummary(data.summary || null);
     } catch (err: any) {
@@ -45,6 +47,7 @@ export const CompliancePage: React.FC = () => {
       setLoading(false);
     }
   };
+
 
   const filtered = requirements.filter((r) => {
     if (filter === 'IMPLEMENTED') return r.status === 'IMPLEMENTED';

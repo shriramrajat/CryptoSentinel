@@ -12,4 +12,7 @@ def compliance_summary() -> dict:
 @router_compliance.get("/api/v1/compliance/requirements")
 def compliance_requirements() -> dict:
     """Return full SIH26164 requirement traceability matrix."""
-    return {"requirements": get_requirements()}
+    return {
+        "requirements": get_requirements(),
+        "summary": get_summary(),
+    }
