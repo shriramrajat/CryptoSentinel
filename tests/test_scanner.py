@@ -159,13 +159,13 @@ def test_deterministic_asset_id():
     assets_run1 = scanner.scan_file(python_file)
     assets_run2 = scanner.scan_file(python_file)
 
-    # 1. Stability across runs
+    # 1. Repeated scan -> same asset_id
     assert len(assets_run1) == len(assets_run2)
     for a1, a2 in zip(assets_run1, assets_run2):
         assert a1.asset_id == a2.asset_id
         assert a1.asset_id.startswith("crypto-")
 
-    # 2. Same input -> same asset_id
+    # 2. Same source -> same asset_id
     a1 = assets_run1[0]
     a1_clone = CryptoAsset.create(
         name=a1.name,
@@ -179,6 +179,7 @@ def test_deterministic_asset_id():
         language=a1.language,
         detection_mechanism=a1.evidence.detection_mechanism,
         matched_rule_id=a1.evidence.matched_rule_id,
+        purpose=a1.purpose,
     )
     assert a1.asset_id == a1_clone.asset_id
 
@@ -195,6 +196,7 @@ def test_deterministic_asset_id():
         language=a1.language,
         detection_mechanism=a1.evidence.detection_mechanism,
         matched_rule_id=a1.evidence.matched_rule_id,
+        purpose=a1.purpose,
     )
     assert a1.asset_id != a_diff_line.asset_id
 
@@ -211,8 +213,43 @@ def test_deterministic_asset_id():
         language=a1.language,
         detection_mechanism=a1.evidence.detection_mechanism,
         matched_rule_id=a1.evidence.matched_rule_id,
+        purpose=a1.purpose,
     )
     assert a1.asset_id != a_diff_algo.asset_id
+
+    # 5. Different relevant detection rule -> different asset_id
+    a_diff_rule = CryptoAsset.create(
+        name=a1.name,
+        category=a1.category,
+        algorithm=a1.algorithm,
+        file_path=a1.file_path,
+        line_number=a1.line_number,
+        code_snippet=a1.code_snippet,
+        library=a1.library,
+        confidence=a1.confidence,
+        language=a1.language,
+        detection_mechanism=a1.evidence.detection_mechanism,
+        matched_rule_id="RULE-DIFFERENT-002",
+        purpose=a1.purpose,
+    )
+    assert a1.asset_id != a_diff_rule.asset_id
+
+    # 6. Path normalization does not introduce machine-specific identity
+    root1 = Path("/tmp/workspace_a")
+    root2 = Path("C:\\Users\\Developer\\workspace_b")
+    a_root1 = CryptoAsset.create(
+        name="AES", category="symmetric_encryption", algorithm="AES",
+        file_path=root1 / "src" / "crypto.py", line_number=10, code_snippet="AES.new()",
+        library="pycrypto", confidence=0.9, root_dir=root1, matched_rule_id="RULE-AES-001"
+    )
+    a_root2 = CryptoAsset.create(
+        name="AES", category="symmetric_encryption", algorithm="AES",
+        file_path=root2 / "src" / "crypto.py", line_number=10, code_snippet="AES.new()",
+        library="pycrypto", confidence=0.9, root_dir=root2, matched_rule_id="RULE-AES-001"
+    )
+    assert a_root1.file_path == "src/crypto.py"
+    assert a_root2.file_path == "src/crypto.py"
+    assert a_root1.asset_id == a_root2.asset_id
 
 
 def test_path_normalization():
@@ -223,6 +260,7 @@ def test_path_normalization():
         assert not asset.file_path.startswith("C:")
         assert not asset.file_path.startswith("c:")
         assert not asset.file_path.startswith("/home/")
+        assert not asset.file_path.startswith("/tmp/")
         # Must use forward slashes
         assert "\\" not in asset.file_path
 
@@ -597,7 +635,7 @@ def test_detected_assets_include_required_evidence_fields():
     assert assets
     for asset in assets:
         assert asset.asset_id
-        assert asset.language in {"python", "java", "c", "pem"}
+        assert asset.language in {"python", "java", "c", "pem", "javascript", "typescript", "go", "rust", "php", "csharp", "kotlin", "config"}
         assert asset.file_path
         assert asset.line_number > 0
         assert asset.category

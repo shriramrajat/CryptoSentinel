@@ -7,14 +7,22 @@ from typing import Any, Dict, List, Optional
 from ecdat.risk import classify_assets
 from ecdat.scanner import Scanner, SUPPORTED_EXTENSIONS
 
-SCANNER_VERSION = "0.1.0"
+SCANNER_VERSION = "0.2.0"
 
 _LANGUAGE_EXTENSIONS = {
     "python": {".py"},
     "java": {".java"},
     "c": {".c", ".h"},
-    "cpp": {".cpp", ".hpp"},
-    "pem": {".pem", ".crt", ".key"},
+    "cpp": {".cpp", ".hpp", ".cc", ".cxx"},
+    "javascript": {".js", ".mjs", ".cjs", ".jsx"},
+    "typescript": {".ts", ".tsx"},
+    "go": {".go"},
+    "rust": {".rs"},
+    "php": {".php"},
+    "csharp": {".cs"},
+    "kotlin": {".kt", ".kts"},
+    "pem": {".pem", ".crt", ".key", ".cer", ".der"},
+    "config": {".yaml", ".yml", ".toml", ".json", ".xml", ".env", ".config", ".properties", ".ini", ".conf"},
 }
 
 
@@ -45,6 +53,7 @@ class ScanService:
         self,
         target_path: str,
         language_filters: Optional[List[str]] = None,
+        generate_cbom: bool = False,
     ) -> Dict[str, Any]:
         if not os.path.exists(target_path):
             raise ValueError(f"Target path does not exist: {target_path}")
@@ -86,6 +95,10 @@ class ScanService:
         severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
         quantum_threat_counts = {"shor": 0, "grover": 0, "none": 0}
         algorithm_distribution: Dict[str, int] = {}
+        language_distribution: Dict[str, int] = {}
+        category_distribution: Dict[str, int] = {}
+        library_distribution: Dict[str, int] = {}
+        purpose_distribution: Dict[str, int] = {}
 
         for asset in assets:
             assessment = assessments_by_id.get(asset.asset_id)
@@ -103,15 +116,27 @@ class ScanService:
             severity_counts[severity] += 1
             quantum_threat_counts[quantum_threat] += 1
             algorithm_distribution[asset.algorithm] = algorithm_distribution.get(asset.algorithm, 0) + 1
+            language_distribution[asset.language] = language_distribution.get(asset.language, 0) + 1
+            category_distribution[asset.category] = category_distribution.get(asset.category, 0) + 1
+            library_distribution[asset.library] = library_distribution.get(asset.library, 0) + 1
+            purpose_key = asset.purpose or "unknown"
+            purpose_distribution[purpose_key] = purpose_distribution.get(purpose_key, 0) + 1
+
             evidence = asset.evidence
 
-            findings.append({
+            finding: Dict[str, Any] = {
                 "finding_id": asset.asset_id,
                 "algorithm": asset.algorithm,
                 "category": asset.category,
                 "key_length": asset.key_length,
                 "mode": asset.mode,
                 "padding": asset.padding,
+                # Phase 1 new fields (backward compatible)
+                "purpose": asset.purpose,
+                "protocol": asset.protocol,
+                "language": asset.language,
+                "library": asset.library,
+                "detection_rule": asset.detection_rule,
                 "file_location": {"file_path": asset.file_path, "line_number": asset.line_number},
                 "evidence": {
                     "file_path": asset.file_path,
@@ -134,9 +159,19 @@ class ScanService:
                         if recommendation else None
                     ),
                 },
-            })
+            }
 
-        return {
+            # Include certificate metadata if present
+            if asset.certificate_metadata:
+                finding["certificate_metadata"] = asset.certificate_metadata.to_dict()
+
+            # Include key metadata if present (no raw key material)
+            if asset.key_metadata:
+                finding["key_metadata"] = asset.key_metadata.to_dict()
+
+            findings.append(finding)
+
+        result: Dict[str, Any] = {
             "summary": {
                 "total_files_discovered": len(all_files),
                 "total_files_scanned": len(files) - len(skipped_files),
@@ -147,6 +182,11 @@ class ScanService:
                 "quantum_threat_counts": quantum_threat_counts,
                 "algorithm_distribution": algorithm_distribution,
                 "quantum_vulnerable_assets": quantum_threat_counts["shor"] + quantum_threat_counts["grover"],
+                # Phase 1 new summary fields
+                "language_distribution": language_distribution,
+                "category_distribution": category_distribution,
+                "library_distribution": library_distribution,
+                "purpose_distribution": purpose_distribution,
             },
             "findings": findings,
             "errors": errors,
@@ -154,5 +194,23 @@ class ScanService:
             "metadata": {
                 "scan_duration_ms": int((time.time() - start_time) * 1000),
                 "scanner_version": SCANNER_VERSION,
+                "target": target_path,
             },
         }
+
+        # Optionally include CBOM in response
+        if generate_cbom:
+            try:
+                from ecdat.cbom.generator import generate_cbom
+                result["cbom"] = generate_cbom(
+                    assets,
+                    metadata={
+                        "scanner_version": SCANNER_VERSION,
+                        "target": target_path,
+                        "scan_duration_ms": result["metadata"]["scan_duration_ms"],
+                    },
+                )
+            except Exception as exc:
+                result["cbom_error"] = str(exc)
+
+        return result
