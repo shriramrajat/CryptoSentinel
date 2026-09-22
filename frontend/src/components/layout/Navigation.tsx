@@ -61,6 +61,13 @@ export const Navigation: React.FC = () => {
       badgeColor: 'bg-[#00E5FF]/20 text-[#00E5FF] border-[#00E5FF]/40',
     },
     {
+      to: '/compliance',
+      label: 'SIH Compliance',
+      icon: <ShieldIcon className="w-4 h-4" />,
+      badge: 'P6',
+      badgeColor: 'bg-[#00FFA3]/20 text-[#00FFA3] border-[#00FFA3]/40',
+    },
+    {
       to: '/diagnostics',
       label: 'Diagnostics',
       icon: <CpuIcon className="w-4 h-4" />,

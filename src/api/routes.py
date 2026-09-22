@@ -30,6 +30,7 @@ from ecdat.phase5_git import GitInspector
 from ecdat.phase5_query import SecurityQueryEngine
 from ecdat.phase5_copilot import EvidenceCopilot
 from ecdat.phase5_inventory import AdvancedDiscoveryInventoryAdapter
+from ecdat.phase6_stores import add_hardware, get_hardware, add_cloud, get_cloud
 
 from ecdat.inventory.orchestrator import EnterpriseScanOrchestrator
 from ecdat.inventory.store import InventoryStore
@@ -59,6 +60,54 @@ _COPILOT = EvidenceCopilot()
 def health() -> dict:
     return {"status": "ok"}
 
+
+# ==============================================================================
+# PHASE 6 ENDPOINTS: HARDWARE CRYPTO & CLOUD CRYPTO
+# ==============================================================================
+
+@router.post("/api/v1/discovery/hardware")
+def hardware_discovery_endpoint(request: AdvancedDiscoveryRequest) -> dict:
+    """Scan a file for hardware crypto module references (PKCS#11, TPM, smart-card, HW accel).
+    All findings are CONFIGURED or REFERENCE_ONLY; never LIVE_VERIFIED."""
+    try:
+        result = _DISCOVERY_REGISTRY.scan("hardware", request.path)
+        payload = result.to_dict()
+        add_hardware([f.to_dict() for f in result.findings])
+        return payload
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/api/v1/hardware-crypto")
+def list_hardware_crypto() -> dict:
+    """Return all hardware crypto references discovered in this session."""
+    findings = get_hardware()
+    return {"total": len(findings), "findings": findings}
+
+
+@router.post("/api/v1/discovery/cloud")
+def cloud_discovery_endpoint(request: AdvancedDiscoveryRequest) -> dict:
+    """Scan a file for cloud crypto service references (AWS KMS/ACM, Azure Key Vault, GCP KMS).
+    All findings are REFERENCE_ONLY or CONFIGURED. No cloud credentials are collected."""
+    try:
+        result = _DISCOVERY_REGISTRY.scan("cloud", request.path)
+        payload = result.to_dict()
+        add_cloud([f.to_dict() for f in result.findings])
+        return payload
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/api/v1/cloud-crypto")
+def list_cloud_crypto() -> dict:
+    """Return all cloud crypto references discovered in this session."""
+    findings = get_cloud()
+    return {"total": len(findings), "findings": findings}
+
+
+# ==============================================================================
+# PHASE 5 DISCOVERY (pre-existing)
+# ==============================================================================
 
 @router.post("/api/v1/discovery/{source_type}")
 def advanced_discovery_endpoint(source_type: str, request: AdvancedDiscoveryRequest) -> dict:
