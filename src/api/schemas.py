@@ -22,6 +22,15 @@ class ContextUpdateRequest(BaseModel):
     context: Dict[str, Any]
 
 
+class SimulationRequest(BaseModel):
+    candidate_algorithm: str = Field(..., description="Target candidate PQC algorithm (e.g. 'ML-DSA-65', 'ML-KEM-768', 'AES-256-GCM').")
+
+
+class LifecycleUpdateRequest(BaseModel):
+    new_state: str = Field(..., description="Target lifecycle state (DISCOVERED, ASSESSED, PLANNED, READY, IN_PROGRESS, MIGRATED, VERIFIED).")
+    notes: Optional[str] = None
+
+
 class ErrorDetail(BaseModel):
     code: str
     message: str
