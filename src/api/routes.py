@@ -45,18 +45,13 @@ def scan_endpoint(request: ScanRequest) -> dict:
     if request.user_context_map:
         merged_context_map.update(request.user_context_map)
 
-    try:
-        result = service.run_scan(
-            target_path=request.target_path,
-            language_filters=request.language_filters,
-            generate_cbom=request.generate_cbom or False,
-            user_context_map=merged_context_map if merged_context_map else None,
-            policy_config=request.policy_config,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except (ScannerError, AnalysisError) as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+    result = service.run_scan(
+        target_path=request.target_path,
+        language_filters=request.language_filters,
+        generate_cbom=request.generate_cbom or False,
+        user_context_map=merged_context_map if merged_context_map else None,
+        policy_config=request.policy_config,
+    )
 
     # Store findings in memory cache indexed by finding_id
     _LATEST_SCAN_CACHE.clear()
