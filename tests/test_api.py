@@ -95,3 +95,45 @@ def test_global_exception_handler():
         assert response.status_code == 500
         assert response.json()["error"]["code"] == "INTERNAL_ERROR"
         assert "mock_generic_error" not in response.json()["error"]["message"]
+
+
+def test_successful_scan_then_invalid_scan_clears_active_cache_and_preserves_inventory(temp_repo):
+    # 1. Successful scan
+    resp1 = client.post("/api/v1/scan", json={"target_path": str(temp_repo)})
+    assert resp1.status_code == 200
+    assert resp1.json()["summary"]["total_crypto_assets"] >= 2
+
+    # Verify active cache has findings
+    summary_resp1 = client.get("/api/v1/risk/summary")
+    assert summary_resp1.status_code == 200
+
+    # 2. Invalid scan
+    resp2 = client.post("/api/v1/scan", json={"target_path": "/invalid/nonexistent/directory"})
+    assert resp2.status_code == 400
+    assert resp2.json()["error"]["code"] == "INVALID_INPUT"
+
+    # 3. Active cache must be cleared (no stale active results)
+    summary_resp2 = client.get("/api/v1/risk/summary")
+    assert summary_resp2.status_code == 200
+    assert summary_resp2.json().get("status") == "no_scan_performed"
+
+
+    # 4. Enterprise Inventory must preserve the previous successful scan assets
+    inv_resp = client.get("/api/v1/inventory")
+    assert inv_resp.status_code == 200
+    assert inv_resp.json().get("total_assets", 0) >= 2
+
+
+
+def test_invalid_scan_then_successful_scan(temp_repo):
+    # 1. Invalid scan
+    resp1 = client.post("/api/v1/scan", json={"target_path": "/invalid/path/first"})
+    assert resp1.status_code == 400
+
+    # 2. Subsequent successful scan populates active result state correctly
+    resp2 = client.post("/api/v1/scan", json={"target_path": str(temp_repo)})
+    assert resp2.status_code == 200
+    assert resp2.json()["summary"]["total_crypto_assets"] >= 2
+
+    summary_resp = client.get("/api/v1/risk/summary")
+    assert summary_resp.status_code == 200

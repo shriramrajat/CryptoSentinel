@@ -175,6 +175,7 @@ def scan_endpoint(request: ScanRequest) -> dict:
     - `language_filters`: Optional list of language names to restrict scanning (e.g. ["python", "java"]).
     - `generate_cbom`: If true, include a CycloneDX v1.6 CBOM in the response under the `cbom` key.
     """
+    _LATEST_SCAN_CACHE.clear()
     orchestrator = EnterpriseScanOrchestrator(store=inventory_store)
     
     # Merge existing user context store with incoming request context
@@ -182,23 +183,27 @@ def scan_endpoint(request: ScanRequest) -> dict:
     if request.user_context_map:
         merged_context_map.update(request.user_context_map)
 
-    result = orchestrator.run_enterprise_scan(
-        target_path=request.target_path,
-        language_filters=request.language_filters,
-        generate_cbom=request.generate_cbom or False,
-        user_context_map=merged_context_map if merged_context_map else None,
-        policy_config=request.policy_config,
-    )
+    try:
+        result = orchestrator.run_enterprise_scan(
+            target_path=request.target_path,
+            language_filters=request.language_filters,
+            generate_cbom=request.generate_cbom or False,
+            user_context_map=merged_context_map if merged_context_map else None,
+            policy_config=request.policy_config,
+        )
 
-    # Store findings in memory cache indexed by finding_id
-    _LATEST_SCAN_CACHE.clear()
-    _LATEST_SCAN_CACHE["summary"] = result.get("summary", {})
-    _LATEST_SCAN_CACHE["metadata"] = result.get("metadata", {})
-    _LATEST_SCAN_CACHE["findings"] = {
-        f["finding_id"]: f for f in result.get("findings", [])
-    }
+        # Store findings in memory cache indexed by finding_id
+        _LATEST_SCAN_CACHE["summary"] = result.get("summary", {})
+        _LATEST_SCAN_CACHE["metadata"] = result.get("metadata", {})
+        _LATEST_SCAN_CACHE["findings"] = {
+            f["finding_id"]: f for f in result.get("findings", [])
+        }
 
-    return result
+        return result
+    except Exception as exc:
+        _LATEST_SCAN_CACHE.clear()
+        raise exc
+
 
 
 @router.post(

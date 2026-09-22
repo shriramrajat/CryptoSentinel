@@ -39,11 +39,13 @@ export const ScanProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const path = (pathOverride !== undefined ? pathOverride : targetPath).trim();
     if (!path) {
       setScanError(new Error('Please enter a valid directory path to scan.'));
+      setScanResponse(null);
       return;
     }
 
     setIsScanning(true);
     setScanError(null);
+    setScanResponse(null);
 
     const req: ScanRequest = {
       target_path: path,
@@ -56,6 +58,7 @@ export const ScanProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setBackendOnline(true);
     } catch (err: any) {
       setScanError(err);
+      setScanResponse(null);
       if (err instanceof ApiError && err.status === 0) {
         setBackendOnline(false);
       }
@@ -63,6 +66,7 @@ export const ScanProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsScanning(false);
     }
   };
+
 
   const clearScan = () => {
     setScanResponse(null);
