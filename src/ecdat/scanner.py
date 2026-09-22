@@ -25,9 +25,40 @@ DEFAULT_IGNORED_DIRS: Set[str] = {
     "dist",
     ".idea",
     ".vscode",
+    "target",       # Rust/Maven build output
+    "vendor",       # Go vendor, PHP Composer
+    ".gradle",
+    "out",
+    "bin",
+    "obj",
 }
 
-SUPPORTED_EXTENSIONS: Set[str] = {".py", ".java", ".c", ".cpp", ".h", ".hpp", ".pem", ".crt", ".key"}
+# Extensions grouped by language (ordered by specificity)
+SUPPORTED_EXTENSIONS: Set[str] = {
+    # Python
+    ".py",
+    # Java
+    ".java",
+    # C / C++
+    ".c", ".h", ".cpp", ".hpp", ".cc", ".cxx",
+    # JavaScript / TypeScript
+    ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx",
+    # Go
+    ".go",
+    # Rust
+    ".rs",
+    # PHP
+    ".php",
+    # C#
+    ".cs",
+    # Kotlin
+    ".kt", ".kts",
+    # Certificate / Key artefacts
+    ".pem", ".crt", ".key", ".cer", ".der",
+    # Configuration / Structured files
+    ".yaml", ".yml", ".toml", ".json", ".xml",
+    ".env", ".config", ".properties", ".ini", ".conf",
+}
 
 
 def strip_comments_from_lines(content_lines: List[str], language: str) -> List[str]:
@@ -62,7 +93,7 @@ def strip_comments_from_lines(content_lines: List[str], language: str) -> List[s
                 cleaned_lines.append(line)
             continue
 
-        if language in ["java", "c", "cpp", "all", "pem"]:
+        if language in ["java", "c", "cpp", "javascript", "typescript", "go", "csharp", "kotlin", "rust", "php", "all", "pem"]:
             current_chars = list(line)
             i = 0
             n = len(current_chars)
@@ -103,6 +134,19 @@ def strip_comments_from_lines(content_lines: List[str], language: str) -> List[s
                     else:
                         i += 1
             cleaned_lines.append("".join(current_chars))
+
+        elif language in ["config", "yaml", "toml", "php"]:
+            # Strip # comments (YAML/TOML/shell-style config)
+            stripped = line.strip()
+            if stripped.startswith("#") or stripped.startswith(";"):
+                cleaned_lines.append(" " * len(line))
+            else:
+                cleaned_lines.append(line)
+
+        elif language == "xml":
+            # Strip XML comments <!-- ... -->
+            cleaned_lines.append(line)  # XML comment stripping done per-block elsewhere
+
         else:
             cleaned_lines.append(line)
 
@@ -111,7 +155,7 @@ def strip_comments_from_lines(content_lines: List[str], language: str) -> List[s
 
 def _string_literal_masks(content_lines: List[str], language: str) -> List[List[bool]]:
     """Build per-line masks for string literal regions, preserving column positions."""
-    if language == "pem":
+    if language in ["pem", "config", "yaml", "toml", "xml"]:
         return [[False] * len(line) for line in content_lines]
 
     masks: List[List[bool]] = []
@@ -135,7 +179,7 @@ def _string_literal_masks(content_lines: List[str], language: str) -> List[List[
                     i = end_pos
                 continue
 
-            if language in ["python", "java"] and i + 2 < n and line[i:i + 3] in ['"""', "'''"]:
+            if language in ["python", "java", "kotlin"] and i + 2 < n and line[i:i + 3] in ['"""', "'''"]:
                 triple_quote = line[i:i + 3]
                 end = line.find(triple_quote, i + 3)
                 end_pos = n if end == -1 else end + 3
@@ -148,7 +192,7 @@ def _string_literal_masks(content_lines: List[str], language: str) -> List[List[
                     i = end_pos
                 continue
 
-            if line[i] in ['"', "'"]:
+            if i < n and line[i] in ['"', "'"]:
                 quote_char = line[i]
                 start = i
                 i += 1
@@ -210,17 +254,56 @@ class Scanner:
 
     def _determine_language(self, file_path: Path) -> str:
         ext = file_path.suffix.lower()
+        name = file_path.name.lower()
+
         if ext == ".py":
             return "python"
         elif ext == ".java":
             return "java"
         elif ext in [".c", ".h"]:
             return "c"
-        elif ext in [".cpp", ".hpp"]:
+        elif ext in [".cpp", ".hpp", ".cc", ".cxx"]:
             return "cpp"
-        elif ext in [".pem", ".crt", ".key"]:
+        elif ext in [".js", ".mjs", ".cjs", ".jsx"]:
+            return "javascript"
+        elif ext in [".ts", ".tsx"]:
+            return "typescript"
+        elif ext == ".go":
+            return "go"
+        elif ext == ".rs":
+            return "rust"
+        elif ext == ".php":
+            return "php"
+        elif ext == ".cs":
+            return "csharp"
+        elif ext in [".kt", ".kts"]:
+            return "kotlin"
+        elif ext in [".pem", ".crt", ".key", ".cer", ".der"]:
             return "pem"
+        elif ext in [".yaml", ".yml"]:
+            return "yaml"
+        elif ext == ".toml":
+            return "toml"
+        elif ext == ".xml":
+            return "xml"
+        elif ext in [".json"]:
+            return "json"
+        elif ext in [".env", ".properties", ".ini", ".conf", ".config"] or name in [".env"]:
+            return "config"
         return "all"
+
+    def _language_for_rule_matching(self, language: str) -> str:
+        """Map language to the set of language tags rules can use."""
+        # TypeScript rules also apply JavaScript rules
+        if language == "typescript":
+            return "javascript"
+        # cpp also applies c rules
+        if language == "cpp":
+            return "c"
+        # yaml/toml/json/config/xml all use "config"
+        if language in ["yaml", "toml", "json", "config", "xml"]:
+            return "config"
+        return language
 
     def scan_file_regex(
         self,
@@ -232,6 +315,7 @@ class Scanner:
         language = self._determine_language(file_path)
         assets: List[CryptoAsset] = []
         effective_root = root_dir or self.root_dir
+        rule_lang = self._language_for_rule_matching(language)
 
         cleaned_lines = strip_comments_from_lines(content_lines, language)
         string_masks = _string_literal_masks(cleaned_lines, language)
@@ -245,11 +329,13 @@ class Scanner:
                 continue
 
             for rule in REGEX_RULES:
-                # Rule language matching
-                if rule.language not in ["all", language]:
-                    # Allow 'c' rules for 'cpp' as well
+                # Rule language matching: rule must match file language (or be 'all')
+                if rule.language not in ["all", language, rule_lang]:
+                    # Extra: allow 'c' rules for 'cpp', 'javascript' rules for 'typescript'
                     if not (rule.language == "c" and language == "cpp"):
-                        continue
+                        if not (rule.language == "javascript" and language == "typescript"):
+                            if not (rule.language == "config" and language in ["yaml", "toml", "json", "xml", "config"]):
+                                continue
 
                 match = None
                 for candidate in rule.pattern.finditer(search_line):
@@ -266,6 +352,8 @@ class Scanner:
                     mode = rule.mode
                     padding = rule.padding
                     confidence = rule.confidence
+                    purpose = rule.purpose
+                    protocol = rule.protocol
                     detection_mechanism = "pem_header" if library == "PEM" else "regex"
                     code_snippet = original_line.strip()
 
@@ -276,15 +364,14 @@ class Scanner:
                             continue
                         code_snippet = redact_secret_literal(code_snippet)
 
-                    # Dynamic parsing for Java rules
-                    if rule.rule_id == "java-cipher-instance":
+                    # ── Dynamic parsing for Java / Kotlin JCE rules ──
+                    if rule.rule_id in ["JAVA-JCE-CIPHER-001", "KT-JCE-CIPHER-001"]:
                         transform = match.group(1)
                         parts = transform.split("/")
                         if len(parts) >= 1:
                             algorithm = parts[0].upper()
                             if algorithm == "DESEDE":
                                 algorithm = "3DES"
-
                             if algorithm in ["RSA", "EC", "DSA", "DH"]:
                                 category = "asymmetric_encryption"
                             elif algorithm in ["AES", "DES", "3DES"]:
@@ -294,22 +381,23 @@ class Scanner:
                         if len(parts) >= 3:
                             padding = parts[2]
 
-                    elif rule.rule_id == "java-keypair-gen":
+                    elif rule.rule_id in ["JAVA-JCE-KEYPAIRGEN-001", "KT-JCE-KEYPAIRGEN-001"]:
                         algo_match = match.group(1).upper()
                         algorithm = "ECC" if algo_match == "EC" else algo_match
                         category = "asymmetric_encryption"
 
-                    elif rule.rule_id == "java-message-digest":
+                    elif rule.rule_id in ["JAVA-JCE-MESSAGEDIGEST-001", "KT-JCE-MESSAGEDIGEST-001"]:
                         algo_match = match.group(1).upper()
                         algorithm = algo_match
                         category = "hashing"
+                        purpose = "hashing"
 
-                    elif rule.rule_id == "java-keyagreement-instance":
+                    elif rule.rule_id in ["JAVA-JCE-KEYAGREEMENT-001"]:
                         algo_match = match.group(1).upper()
                         algorithm = algo_match
                         category = "key_exchange"
 
-                    elif rule.rule_id == "java-signature-instance":
+                    elif rule.rule_id in ["JAVA-JCE-SIGNATURE-001", "KT-JCE-SIGNATURE-001"]:
                         algo_match = match.group(1).upper()
                         if "ECDSA" in algo_match:
                             algorithm = "ECDSA"
@@ -320,16 +408,158 @@ class Scanner:
                         else:
                             algorithm = algo_match
                         category = "digital_signature"
+                        purpose = "signing"
 
-                    # Dynamic parsing for Python RSA.generate regex
-                    elif rule.rule_id == "py-crypto-rsa-gen":
+                    # ── Dynamic parsing for Python RSA.generate regex ──
+                    elif rule.rule_id == "PY-PYCRYPTO-RSA-GENERATE-001":
                         try:
                             key_length = int(match.group(1))
                         except (IndexError, ValueError):
                             key_length = None
 
+                    # ── Dynamic parsing for JS/TS WebCrypto digest ──
+                    elif rule.rule_id == "JS-WEBCRYPTO-DIGEST-001":
+                        try:
+                            algo_str = match.group(1)
+                            algorithm = algo_str  # SHA-1, SHA-256, SHA-384, SHA-512
+                            purpose = "hashing"
+                        except (IndexError, AttributeError):
+                            pass
+
+                    # ── Dynamic parsing for JS/TS WebCrypto generateKey / encrypt ──
+                    elif rule.rule_id in ["JS-WEBCRYPTO-GENERATE-001", "JS-WEBCRYPTO-ENCRYPT-001"]:
+                        try:
+                            algo_str = match.group(1).upper()
+                            if "RSA" in algo_str:
+                                algorithm = "RSA"
+                                category = "asymmetric_encryption"
+                            elif "EC" in algo_str:
+                                algorithm = "ECC"
+                                category = "asymmetric_encryption"
+                            elif "AES" in algo_str:
+                                algorithm = "AES"
+                                if "-GCM" in algo_str:
+                                    mode = "GCM"
+                                elif "-CBC" in algo_str:
+                                    mode = "CBC"
+                            elif "HMAC" in algo_str:
+                                algorithm = "HMAC"
+                                category = "mac"
+                        except (IndexError, AttributeError):
+                            pass
+
+                    # ── Dynamic parsing for Node.js crypto functions ──
+                    elif rule.rule_id == "JS-CRYPTO-NODE-CREATEHASH-001":
+                        try:
+                            algo_str = match.group(1).lower()
+                            _hash_map = {
+                                "md5": "MD5", "sha1": "SHA-1", "sha224": "SHA-224",
+                                "sha256": "SHA-256", "sha384": "SHA-384",
+                                "sha512": "SHA-512", "sha3-256": "SHA-3",
+                            }
+                            algorithm = _hash_map.get(algo_str, algo_str.upper())
+                            purpose = "hashing"
+                        except (IndexError, AttributeError):
+                            pass
+
+                    elif rule.rule_id == "JS-CRYPTO-NODE-CREATECIPHER-001":
+                        try:
+                            algo_str = match.group(1).lower()
+                            if "aes-256-gcm" in algo_str:
+                                algorithm = "AES"; key_length = 256; mode = "GCM"
+                            elif "aes-128-gcm" in algo_str:
+                                algorithm = "AES"; key_length = 128; mode = "GCM"
+                            elif "aes-256-cbc" in algo_str:
+                                algorithm = "AES"; key_length = 256; mode = "CBC"
+                            elif "aes-128-cbc" in algo_str:
+                                algorithm = "AES"; key_length = 128; mode = "CBC"
+                            elif "des" in algo_str:
+                                algorithm = "DES"
+                            elif "rc4" in algo_str:
+                                algorithm = "RC4"
+                            purpose = "encryption"
+                        except (IndexError, AttributeError):
+                            pass
+
+                    elif rule.rule_id == "JS-CRYPTO-NODE-GENKEYPAIR-001":
+                        try:
+                            algo_str = match.group(1).lower()
+                            _kp_map = {"rsa": "RSA", "ec": "ECC", "ed25519": "Ed25519", "dh": "DH"}
+                            algorithm = _kp_map.get(algo_str, algo_str.upper())
+                            if algo_str in ["rsa", "ec"]:
+                                category = "asymmetric_encryption"
+                        except (IndexError, AttributeError):
+                            pass
+
+                    # ── Dynamic parsing for PHP password_hash ──
+                    elif rule.rule_id == "PHP-PASSWORD-HASH-001":
+                        try:
+                            algo_const = match.group(1).upper()
+                            if "ARGON2" in algo_const:
+                                algorithm = "Argon2"
+                            elif "BCRYPT" in algo_const:
+                                algorithm = "bcrypt"
+                                category = "key_derivation"
+                        except (IndexError, AttributeError):
+                            pass
+
+                    elif rule.rule_id == "PHP-HASH-001":
+                        try:
+                            algo_str = match.group(1).lower()
+                            _ph_map = {
+                                "md5": "MD5", "sha1": "SHA-1", "sha256": "SHA-256",
+                                "sha384": "SHA-384", "sha512": "SHA-512",
+                                "sha3-256": "SHA-3", "sha3-512": "SHA-3",
+                            }
+                            algorithm = _ph_map.get(algo_str, algo_str.upper())
+                        except (IndexError, AttributeError):
+                            pass
+
+                    # ── Dynamic parsing for WebCrypto sign ──
+                    elif rule.rule_id == "JS-WEBCRYPTO-SIGN-001":
+                        try:
+                            algo_str = match.group(1)
+                            if "ECDSA" in algo_str:
+                                algorithm = "ECDSA"
+                            elif "Ed25519" in algo_str:
+                                algorithm = "Ed25519"
+                            elif "RSA" in algo_str:
+                                algorithm = "RSA"
+                            category = "digital_signature"
+                            purpose = "signing"
+                        except (IndexError, AttributeError):
+                            pass
+
+                    # Preserve backward-compatible rule IDs for legacy tests
+                    rule_id_used = rule.rule_id
+                    # Map legacy scanners that stored old rule IDs
+                    _LEGACY_COMPAT = {
+                        "PY-PYCRYPTO-RSA-GENERATE-001": "py-crypto-rsa-gen",
+                        "PY-PYCRYPTO-AES-NEW-001": "py-crypto-aes-new",
+                        "JAVA-JCE-CIPHER-001": "java-cipher-instance",
+                        "JAVA-JCE-KEYPAIRGEN-001": "java-keypair-gen",
+                        "JAVA-JCE-MESSAGEDIGEST-001": "java-message-digest",
+                        "JAVA-JCE-SIGNATURE-001": "java-signature-instance",
+                        "JAVA-JCE-KEYAGREEMENT-001": "java-keyagreement-instance",
+                        "JAVA-HARDCODED-SECRET-001": "java-hardcoded-secret-string",
+                        "C-OPENSSL-RSA-GENERATE-001": "c-openssl-rsa-gen",
+                        "C-OPENSSL-AES128-CBC-001": "c-openssl-evp-aes128-cbc",
+                        "C-OPENSSL-AES256-GCM-001": "c-openssl-evp-aes256-gcm",
+                        "C-OPENSSL-SHA256-001": "c-openssl-evp-sha256",
+                        "C-OPENSSL-SHA1-001": "c-openssl-evp-sha1",
+                        "C-OPENSSL-MD5-001": "c-openssl-evp-md5",
+                        "C-OPENSSL-EC-NEW-001": "c-openssl-ec-new",
+                        "C-OPENSSL-DH-NEW-001": "c-openssl-dh-new",
+                        "C-OPENSSL-DSA-NEW-001": "c-openssl-dsa-new",
+                        "C-HARDCODED-SECRET-001": "c-hardcoded-secret-string",
+                        "PEM-RSA-PRIVATE-KEY-001": "pem-rsa-private-key",
+                        "PEM-EC-PRIVATE-KEY-001": "pem-ec-private-key",
+                        "PEM-CERTIFICATE-001": "pem-certificate",
+                    }
+                    matched_rule_id = _LEGACY_COMPAT.get(rule.rule_id, rule.rule_id)
+
                     asset = CryptoAsset.create(
-                        name=f"{algorithm} Detection ({rule.library})",
+                        name=f"{algorithm} Detection ({library})",
                         category=category,
                         algorithm=algorithm,
                         file_path=str(file_path),
@@ -339,11 +569,14 @@ class Scanner:
                         confidence=confidence,
                         language=language,
                         detection_mechanism=detection_mechanism,
-                        matched_rule_id=rule.rule_id,
+                        matched_rule_id=matched_rule_id,
                         key_length=key_length,
                         mode=mode,
                         padding=padding,
                         root_dir=effective_root,
+                        purpose=purpose,
+                        protocol=protocol,
+                        detection_rule=rule.rule_id,
                     )
                     assets.append(asset)
 
@@ -354,7 +587,7 @@ class Scanner:
         file_path: Path,
         root_dir: Optional[Union[str, Path]] = None,
     ) -> List[CryptoAsset]:
-        """Perform full scan on a single file combining AST and Regex detection."""
+        """Perform full scan on a single file combining AST, certificate, and Regex detection."""
         effective_root = root_dir or self.root_dir
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -364,6 +597,18 @@ class Scanner:
 
         lines = content.splitlines()
         language = self._determine_language(file_path)
+
+        # Certificate / key file parsing (PEM/DER/CRT/KEY/CER files)
+        if language == "pem":
+            try:
+                from ecdat.detectors.certificates import scan_certificate_file
+                cert_assets = scan_certificate_file(file_path, content, root_dir=effective_root)
+                if cert_assets:
+                    return cert_assets
+            except Exception:
+                pass
+            # Fallback to regex scan for PEM marker detection
+            return self.scan_file_regex(file_path, lines, root_dir=effective_root)
 
         regex_assets = self.scan_file_regex(file_path, lines, root_dir=effective_root)
 

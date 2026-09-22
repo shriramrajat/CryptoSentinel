@@ -39,6 +39,27 @@ export interface FileLocation {
   line_number: number;
 }
 
+export interface CertificateMetadata {
+  subject?: string | null;
+  issuer?: string | null;
+  serial_number?: string | null;
+  not_before?: string | null;
+  not_after?: string | null;
+  is_expired?: boolean;
+  signature_algorithm?: string | null;
+  is_weak_signature?: boolean;
+  key_type?: string | null;
+  key_size?: number | null;
+  is_weak_key?: boolean;
+  subject_alt_names?: string[];
+}
+
+export interface KeyMetadata {
+  key_type?: string | null;
+  key_size?: number | null;
+  private_material?: string;
+}
+
 export interface Finding {
   finding_id: string;
   algorithm: string;
@@ -46,6 +67,10 @@ export interface Finding {
   key_length: number | null;
   mode: string | null;
   padding: string | null;
+  purpose?: string | null;
+  language?: string | null;
+  certificate_metadata?: CertificateMetadata | null;
+  key_metadata?: KeyMetadata | null;
   file_location: FileLocation;
   evidence: Evidence;
   risk: RiskAssessment;

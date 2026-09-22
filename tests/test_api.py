@@ -52,7 +52,7 @@ def test_scan_response_shape(temp_repo):
     data = response.json()
     assert {"summary", "findings", "errors", "skipped_files", "metadata"} <= data.keys()
     assert data["summary"]["total_crypto_assets"] >= 2
-    assert data["metadata"]["scanner_version"] == "0.1.0"
+    assert data["metadata"]["scanner_version"] == "0.2.0"
 
     for finding in data["findings"]:
         assert {"finding_id", "algorithm", "category", "file_location", "evidence", "risk"} <= finding.keys()

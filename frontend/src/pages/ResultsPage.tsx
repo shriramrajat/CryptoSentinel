@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScan } from '../context/ScanContext';
+import { scanApi } from '../api/client';
 import type { Finding } from '../types/api';
 import { SectionHeader } from '../components/common/SectionHeader';
 import { Card } from '../components/common/Card';
@@ -23,8 +24,30 @@ export default function ResultsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [severityFilter, setSeverityFilter] = useState('all');
   const [quantumFilter, setQuantumFilter] = useState('all');
+  const [purposeFilter, setPurposeFilter] = useState('all');
+  const [languageFilter, setLanguageFilter] = useState('all');
+  const [isExportingCbom, setIsExportingCbom] = useState(false);
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+
+  const handleExportCbom = async () => {
+    if (!targetPath) return;
+    setIsExportingCbom(true);
+    try {
+      const cbomData = await scanApi.exportCbom({ target_path: targetPath, language_filters: null });
+      const blob = new Blob([JSON.stringify(cbomData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cbom-cyclonedx-v1.6-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to export CBOM:', err);
+    } finally {
+      setIsExportingCbom(false);
+    }
+  };
 
   if (!scanResponse) {
     return (
@@ -63,7 +86,13 @@ export default function ResultsPage() {
     const matchesQuantum =
       quantumFilter === 'all' || item.risk.quantum_threat.toLowerCase() === quantumFilter.toLowerCase();
 
-    return matchesSearch && matchesSeverity && matchesQuantum;
+    const matchesPurpose =
+      purposeFilter === 'all' || (item.purpose || '').toLowerCase() === purposeFilter.toLowerCase();
+
+    const matchesLanguage =
+      languageFilter === 'all' || (item.language || '').toLowerCase() === languageFilter.toLowerCase();
+
+    return matchesSearch && matchesSeverity && matchesQuantum && matchesPurpose && matchesLanguage;
   });
 
   return (
@@ -74,9 +103,14 @@ export default function ResultsPage() {
           title="Cryptographic Security Analysis Results"
           subtitle="Completed static discovery scan and post-quantum risk assessment."
           action={
-            <Button variant="outline" size="sm" onClick={() => navigate('/')}>
-              Configure New Scan
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="primary" size="sm" onClick={handleExportCbom} disabled={isExportingCbom}>
+                {isExportingCbom ? 'Exporting...' : 'Export CBOM 1.6 JSON'}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate('/')}>
+                Configure New Scan
+              </Button>
+            </div>
           }
         />
         <AnalysisSummaryCard
@@ -145,7 +179,7 @@ export default function ResultsPage() {
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <FilterIcon className="w-3.5 h-3.5 text-[#A3ADBF]" />
               <select
                 value={severityFilter}
@@ -169,6 +203,37 @@ export default function ResultsPage() {
                 <option value="shor">Shor Threat</option>
                 <option value="grover">Grover Threat</option>
                 <option value="none">Quantum Safe</option>
+              </select>
+
+              <select
+                value={purposeFilter}
+                onChange={(e) => setPurposeFilter(e.target.value)}
+                className="bg-[#070B14] border border-[#232B3D] text-xs text-[#A3ADBF] rounded-lg px-3 py-2 focus:outline-none focus:border-[#00E5FF]"
+              >
+                <option value="all">All Purposes</option>
+                <option value="encryption">Encryption</option>
+                <option value="hashing">Hashing</option>
+                <option value="signing">Signing</option>
+                <option value="key_generation">Key Generation</option>
+                <option value="certificate_or_public_key">Certificate / Key</option>
+              </select>
+
+              <select
+                value={languageFilter}
+                onChange={(e) => setLanguageFilter(e.target.value)}
+                className="bg-[#070B14] border border-[#232B3D] text-xs text-[#A3ADBF] rounded-lg px-3 py-2 focus:outline-none focus:border-[#00E5FF]"
+              >
+                <option value="all">All Languages</option>
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+                <option value="c">C / C++</option>
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="go">Go</option>
+                <option value="php">PHP</option>
+                <option value="csharp">C#</option>
+                <option value="kotlin">Kotlin</option>
+                <option value="pem">PEM / Cert</option>
               </select>
             </div>
           </div>
