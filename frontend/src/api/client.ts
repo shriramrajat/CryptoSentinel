@@ -43,7 +43,7 @@ export async function fetchClient<T>(
   return response.json();
 }
 
-import type { ScanRequest, ScanResponse } from '../types/api';
+import type { ScanRequest, ScanResponse, SimulationResult } from '../types/api';
 
 export const scanApi = {
   getHealth: () => fetchClient<{ status: string }>('/health'),
@@ -73,4 +73,24 @@ export const scanApi = {
     fetchClient<any>('/api/v1/risk/quantum'),
   getHndlRisk: () =>
     fetchClient<any>('/api/v1/risk/hndl'),
+
+  // Phase 3 Endpoints
+  getAssetMigration: (asset_id: string) =>
+    fetchClient<any>(`/api/v1/assets/${asset_id}/migration`),
+  getAssetRecommendations: (asset_id: string) =>
+    fetchClient<any>(`/api/v1/assets/${asset_id}/recommendations`),
+  simulateMigration: (asset_id: string, candidate_algorithm: string) =>
+    fetchClient<{ asset_id: string; simulation: SimulationResult }>(`/api/v1/assets/${asset_id}/simulate-migration`, {
+      method: 'POST',
+      body: JSON.stringify({ candidate_algorithm }),
+    }),
+  getMigrationSummary: () =>
+    fetchClient<any>('/api/v1/migration/summary'),
+  getMigrationRoadmap: () =>
+    fetchClient<any>('/api/v1/migration/roadmap'),
+  updateMigrationStatus: (asset_id: string, new_state: string, notes?: string) =>
+    fetchClient<{ status: string; asset_id: string; lifecycle_record: any }>(`/api/v1/assets/${asset_id}/migration-status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ new_state, notes }),
+    }),
 };

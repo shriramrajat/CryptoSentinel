@@ -1,10 +1,13 @@
 from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException, Query
-from .schemas import ScanRequest, ContextUpdateRequest, ErrorResponse
+from .schemas import ScanRequest, ContextUpdateRequest, SimulationRequest, LifecycleUpdateRequest, ErrorResponse
 from .config import settings
-from ecdat.service import ScanService, ScannerError, AnalysisError
+from ecdat.service import ScanService, ScannerError, AnalysisError, _LIFECYCLE_RECORD_STORE
 from ecdat.context import AssetContext, ContextResolver
 from ecdat.config_policy import RiskPolicyConfig
+from ecdat.models import CryptoAsset
+from ecdat.migration_lifecycle import LifecycleState, generate_migration_roadmap
+from ecdat.migration_simulator import simulate_migration
 
 router = APIRouter()
 
@@ -214,4 +217,156 @@ def get_hndl_risk_summary_endpoint() -> dict:
         "total_assets": len(findings),
         "hndl_candidates_count": len(hndl_candidates),
         "hndl_candidates": hndl_candidates,
+    }
+
+
+# ==============================================================================
+# PHASE 3 ENDPOINTS
+# ==============================================================================
+
+@router.get("/api/v1/assets/{asset_id}/migration")
+def get_asset_migration_endpoint(asset_id: str) -> dict:
+    """Get Phase 3 PQC Migration Intelligence for a specific asset_id."""
+    finding = _LATEST_SCAN_CACHE.get("findings", {}).get(asset_id)
+    if not finding or "migration_intelligence" not in finding:
+        raise HTTPException(status_code=404, detail=f"Asset '{asset_id}' not found in latest scan.")
+
+    return {
+        "asset_id": asset_id,
+        "algorithm": finding.get("algorithm"),
+        "category": finding.get("category"),
+        "file_location": finding.get("file_location"),
+        "migration_intelligence": finding.get("migration_intelligence"),
+    }
+
+
+@router.get("/api/v1/assets/{asset_id}/recommendations")
+def get_asset_recommendations_endpoint(asset_id: str) -> dict:
+    """Get PQC recommendation and alternative candidates for a specific asset_id."""
+    finding = _LATEST_SCAN_CACHE.get("findings", {}).get(asset_id)
+    if not finding or "migration_intelligence" not in finding:
+        raise HTTPException(status_code=404, detail=f"Asset '{asset_id}' not found in latest scan.")
+
+    mig_intel = finding.get("migration_intelligence", {})
+    return {
+        "asset_id": asset_id,
+        "algorithm": finding.get("algorithm"),
+        "recommendation": mig_intel.get("recommendation"),
+        "migration_priority": mig_intel.get("migration_priority"),
+    }
+
+
+@router.post("/api/v1/assets/{asset_id}/simulate-migration")
+def simulate_migration_endpoint(asset_id: str, request: SimulationRequest) -> dict:
+    """Simulates the projected impact of migrating an asset to candidate_algorithm."""
+    finding = _LATEST_SCAN_CACHE.get("findings", {}).get(asset_id)
+    if not finding:
+        # Construct dummy asset for simulation if asset_id is not in latest scan cache
+        fake_asset = CryptoAsset.create(
+            name=f"Asset {asset_id}",
+            category="asymmetric_encryption",
+            algorithm="RSA",
+            file_path="src/sim.py",
+            line_number=1,
+            code_snippet="key = RSA.generate(2048)",
+            library="cryptography",
+            confidence=0.9,
+            key_length=2048,
+            asset_id=asset_id,
+        )
+        ctx = AssetContext()
+        sim_res = simulate_migration(fake_asset, request.candidate_algorithm, context=ctx)
+        return {"asset_id": asset_id, "simulation": sim_res.to_dict()}
+
+    # Construct CryptoAsset from finding
+    evidence_dict = finding.get("evidence", {})
+    asset = CryptoAsset.create(
+        name=f"Asset {asset_id}",
+        category=finding.get("category", "asymmetric_encryption"),
+        algorithm=finding.get("algorithm", "RSA"),
+        file_path=finding.get("file_location", {}).get("file_path", "unknown.py"),
+        line_number=finding.get("file_location", {}).get("line_number", 1),
+        code_snippet=evidence_dict.get("code_snippet", ""),
+        library="cryptography",
+        confidence=finding.get("risk", {}).get("confidence", 0.9),
+        key_length=finding.get("key_length"),
+        asset_id=asset_id,
+    )
+    ctx = AssetContext.from_dict(finding.get("context"))
+
+    sim_res = simulate_migration(asset, request.candidate_algorithm, context=ctx)
+    return {"asset_id": asset_id, "simulation": sim_res.to_dict()}
+
+
+@router.get("/api/v1/migration/summary")
+def get_migration_summary_endpoint() -> dict:
+    """Get Phase 3 aggregated migration summary metrics."""
+    summary = _LATEST_SCAN_CACHE.get("summary")
+    if not summary:
+        return {
+            "status": "no_scan_performed",
+            "message": "No scan results currently cached. Run a scan first via POST /api/v1/scan.",
+        }
+    return {
+        "summary": {
+            "total_crypto_assets": summary.get("total_crypto_assets", 0),
+            "migration_priority_counts": summary.get("migration_priority_counts", {}),
+            "migration_type_counts": summary.get("migration_type_counts", {}),
+            "readiness_state_counts": summary.get("readiness_state_counts", {}),
+        }
+    }
+
+
+@router.get("/api/v1/migration/roadmap")
+def get_migration_roadmap_endpoint() -> dict:
+    """Get overall migration roadmaps for all findings from the latest scan."""
+    findings = list(_LATEST_SCAN_CACHE.get("findings", {}).values())
+    roadmaps = []
+
+    for f in findings:
+        mig_intel = f.get("migration_intelligence", {})
+        roadmaps.append({
+            "asset_id": f["finding_id"],
+            "algorithm": f["algorithm"],
+            "category": f["category"],
+            "file_location": f["file_location"],
+            "migration_priority": mig_intel.get("migration_priority"),
+            "current_state": mig_intel.get("lifecycle_record", {}).get("current_state"),
+            "recommended_algorithm": mig_intel.get("recommendation", {}).get("recommended_algorithm"),
+            "roadmap_steps": mig_intel.get("roadmap", []),
+        })
+
+    return {
+        "total_assets": len(findings),
+        "roadmaps": roadmaps,
+    }
+
+
+@router.patch("/api/v1/assets/{asset_id}/migration-status")
+def update_migration_status_endpoint(asset_id: str, request: LifecycleUpdateRequest) -> dict:
+    """Updates the migration lifecycle state for a specific asset_id."""
+    try:
+        target_state = LifecycleState(request.new_state.upper())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid lifecycle state '{request.new_state}'. Allowed states: {[s.value for s in LifecycleState]}")
+
+    record = _LIFECYCLE_RECORD_STORE.get(asset_id)
+    if not record:
+        record = MigrationRecord(asset_id=asset_id, current_state=LifecycleState.DISCOVERED)
+        _LIFECYCLE_RECORD_STORE[asset_id] = record
+
+    try:
+        record.transition_to(target_state, actor="user_api", notes=request.notes)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    # Update cache if finding is in latest scan
+    finding = _LATEST_SCAN_CACHE.get("findings", {}).get(asset_id)
+    if finding and "migration_intelligence" in finding:
+        finding["migration_intelligence"]["lifecycle_record"] = record.to_dict()
+
+    return {
+        "status": "success",
+        "asset_id": asset_id,
+        "lifecycle_record": record.to_dict(),
     }

@@ -1,4 +1,4 @@
-"""Service layer for CryptoSentinel scanning and risk analysis."""
+"""Service layer for CryptoSentinel scanning, risk analysis, and PQC migration intelligence."""
 import os
 import time
 from pathlib import Path
@@ -6,8 +6,11 @@ from typing import Any, Dict, List, Optional
 
 from ecdat.config_policy import RiskPolicyConfig
 from ecdat.context import AssetContext, ContextResolver
-from ecdat.hndl import HNDLStatus
-from ecdat.lifecycle import LifecycleUrgency
+from ecdat.migration_lifecycle import LifecycleState, MigrationRecord, generate_migration_roadmap
+from ecdat.migration_priority import calculate_migration_priority
+from ecdat.migration_readiness import evaluate_migration_readiness
+from ecdat.migration_simulator import simulate_migration
+from ecdat.pqc_recommendation import generate_migration_recommendation
 from ecdat.risk import assess_quantum_risk, classify_assets
 from ecdat.scanner import Scanner, SUPPORTED_EXTENSIONS
 
@@ -28,6 +31,9 @@ _LANGUAGE_EXTENSIONS = {
     "pem": {".pem", ".crt", ".key", ".cer", ".der"},
     "config": {".yaml", ".yml", ".toml", ".json", ".xml", ".env", ".config", ".properties", ".ini", ".conf"},
 }
+
+# Global in-memory lifecycle state store
+_LIFECYCLE_RECORD_STORE: Dict[str, MigrationRecord] = {}
 
 
 class ScannerError(Exception):
@@ -112,8 +118,13 @@ class ScanService:
         priority_counts = {"IMMEDIATE_ACTION": 0, "PLANNING_REQUIRED": 0, "NEEDS_CONTEXT": 0, "MONITOR": 0, "LOW_PRIORITY": 0}
         unknown_context_count = 0
 
+        # Phase 3 metrics
+        migration_priority_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "REVIEW_REQUIRED": 0}
+        migration_type_counts = {"DIRECT": 0, "HYBRID": 0, "INDIRECT": 0, "NO_DIRECT_EQUIVALENT": 0, "NO_PQC_REPLACEMENT_NEEDED": 0, "REVIEW_REQUIRED": 0}
+        readiness_state_counts = {"READY_FOR_MIGRATION": 0, "READY_FOR_PLANNING": 0, "PARTIALLY_READY": 0, "NOT_READY": 0, "UNKNOWN": 0}
+
         for asset in assets:
-            # 1. Resolve Context for this asset
+            # 1. Resolve Context (Phase 2)
             ctx = ContextResolver.resolve_context(
                 target_dir=effective_root,
                 asset_id=asset.asset_id,
@@ -121,13 +132,27 @@ class ScanService:
                 user_context_map=user_context_map,
             )
 
-            # 2. Compute Phase 2 Assessment
+            # 2. Compute Phase 2 Quantum Risk Assessment
             p2_assessment = assess_quantum_risk(asset, context=ctx, policy=policy)
 
-            # Update Phase 1 baseline metrics
+            # 3. Compute Phase 3 Migration Intelligence
+            recommendation = generate_migration_recommendation(asset, context=ctx, risk_assessment=p2_assessment)
+            readiness = evaluate_migration_readiness(asset, context=ctx, recommendation=recommendation)
+            priority = calculate_migration_priority(risk_assessment=p2_assessment, context=ctx, constraints=recommendation.constraints)
+
+            # Retrieve or initialize migration lifecycle record
+            if asset.asset_id not in _LIFECYCLE_RECORD_STORE:
+                _LIFECYCLE_RECORD_STORE[asset.asset_id] = MigrationRecord(
+                    asset_id=asset.asset_id,
+                    current_state=LifecycleState.DISCOVERED,
+                )
+            rec_state = _LIFECYCLE_RECORD_STORE[asset.asset_id]
+            roadmap = generate_migration_roadmap(asset, recommendation=recommendation, current_state=rec_state.current_state)
+
+            # Update Phase 1 metrics
             p1_assessment = assessments_by_id.get(asset.asset_id)
             if p1_assessment is None:
-                severity, quantum_threat, reason, confidence, recommendation = (
+                severity, quantum_threat, reason, confidence, rec_pqc = (
                     "medium", "none", "Unknown algorithm mapped to default risk.", 0.5, None
                 )
             else:
@@ -135,7 +160,7 @@ class ScanService:
                 quantum_threat = p1_assessment.quantum_threat.value
                 reason = p1_assessment.reason
                 confidence = p1_assessment.confidence
-                recommendation = p1_assessment.pqc_recommendation
+                rec_pqc = p1_assessment.pqc_recommendation
 
             severity_counts[severity] = severity_counts.get(severity, 0) + 1
             quantum_threat_counts[quantum_threat] = quantum_threat_counts.get(quantum_threat, 0) + 1
@@ -148,17 +173,26 @@ class ScanService:
 
             evidence = asset.evidence
 
-            # Update Phase 2 aggregated metrics
-            hndl_status = p2_assessment.hndl_assessment.status.value
-            mosca_urgency = p2_assessment.lifecycle_assessment.urgency.value
-            priority = p2_assessment.overall_priority
+            # Update Phase 2 metrics
+            hndl_s = p2_assessment.hndl_assessment.status.value
+            mosca_u = p2_assessment.lifecycle_assessment.urgency.value
+            prior_p2 = p2_assessment.overall_priority
 
-            hndl_counts[hndl_status] = hndl_counts.get(hndl_status, 0) + 1
-            mosca_urgency_counts[mosca_urgency] = mosca_urgency_counts.get(mosca_urgency, 0) + 1
-            priority_counts[priority] = priority_counts.get(priority, 0) + 1
+            hndl_counts[hndl_s] = hndl_counts.get(hndl_s, 0) + 1
+            mosca_urgency_counts[mosca_u] = mosca_urgency_counts.get(mosca_u, 0) + 1
+            priority_counts[prior_p2] = priority_counts.get(prior_p2, 0) + 1
 
             if p2_assessment.explanation.missing_information:
                 unknown_context_count += 1
+
+            # Update Phase 3 metrics
+            m_prio = priority.value
+            m_type = recommendation.migration_type.value
+            r_state = readiness.state.value
+
+            migration_priority_counts[m_prio] = migration_priority_counts.get(m_prio, 0) + 1
+            migration_type_counts[m_type] = migration_type_counts.get(m_type, 0) + 1
+            readiness_state_counts[r_state] = readiness_state_counts.get(r_state, 0) + 1
 
             finding: Dict[str, Any] = {
                 "finding_id": asset.asset_id,
@@ -181,7 +215,7 @@ class ScanService:
                     "detection_mechanism": evidence.detection_mechanism if evidence else "unknown",
                     "matched_rule_id": evidence.matched_rule_id if evidence else "unknown",
                 },
-                # Phase 1 risk contract (preserved for backward compatibility)
+                # Phase 1 risk contract (preserved)
                 "risk": {
                     "severity": severity,
                     "reason": reason,
@@ -189,16 +223,24 @@ class ScanService:
                     "quantum_threat": quantum_threat,
                     "pqc_recommendation": (
                         {
-                            "target_algorithm": recommendation.target_algorithm,
-                            "nist_standard": recommendation.nist_standard,
-                            "migration_type": recommendation.migration_type,
+                            "target_algorithm": rec_pqc.target_algorithm,
+                            "nist_standard": rec_pqc.nist_standard,
+                            "migration_type": rec_pqc.migration_type,
                         }
-                        if recommendation else None
+                        if rec_pqc else None
                     ),
                 },
-                # Phase 2 context & risk intelligence contract
+                # Phase 2 context & risk intelligence contract (preserved)
                 "context": ctx.to_dict(),
                 "quantum_risk_intelligence": p2_assessment.to_dict(),
+                # Phase 3 PQC Migration Intelligence contract
+                "migration_intelligence": {
+                    "recommendation": recommendation.to_dict(),
+                    "readiness": readiness.to_dict(),
+                    "migration_priority": priority.value,
+                    "lifecycle_record": rec_state.to_dict(),
+                    "roadmap": [step.to_dict() for step in roadmap],
+                },
             }
 
             # Include certificate metadata if present
@@ -232,6 +274,10 @@ class ScanService:
                 "mosca_urgency_counts": mosca_urgency_counts,
                 "priority_counts": priority_counts,
                 "unknown_context_count": unknown_context_count,
+                # Phase 3 Metrics
+                "migration_priority_counts": migration_priority_counts,
+                "migration_type_counts": migration_type_counts,
+                "readiness_state_counts": readiness_state_counts,
             },
             "findings": findings,
             "errors": errors,

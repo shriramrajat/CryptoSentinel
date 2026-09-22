@@ -143,6 +143,99 @@ export interface QuantumRiskIntelligence {
   calculated_at: string;
 }
 
+export interface HybridStrategy {
+  classical_component: string;
+  pqc_component: string;
+  combined_public_key_bytes: number;
+  combined_ciphertext_or_sig_bytes: number;
+  rationale: string;
+}
+
+export interface MigrationConstraints {
+  key_size_overhead: boolean;
+  ciphertext_or_sig_overhead: boolean;
+  packet_fragmentation_risk: boolean;
+  protocol_compatibility_risk: boolean;
+  library_availability_risk: boolean;
+  deployment_complexity: string;
+  constraint_items: string[];
+}
+
+export interface MigrationRecommendation {
+  asset_id: string;
+  current_algorithm: string;
+  current_purpose: string;
+  current_library: string;
+  recommended_algorithm: string;
+  recommended_family: string;
+  nist_standard: string;
+  migration_type: string;
+  hybrid_strategy?: HybridStrategy | null;
+  alternative_recommendation?: string | null;
+  rationale: string[];
+  constraints: MigrationConstraints;
+  confidence: number;
+  source: string;
+  assumptions: Record<string, any>;
+}
+
+export interface DimensionScore {
+  name: string;
+  passed: boolean;
+  score: number;
+  notes: string;
+}
+
+export interface MigrationReadiness {
+  state: "READY_FOR_MIGRATION" | "READY_FOR_PLANNING" | "PARTIALLY_READY" | "NOT_READY" | "UNKNOWN";
+  overall_score: number;
+  discovery_completeness: DimensionScore;
+  context_completeness: DimensionScore;
+  dependency_library_support: DimensionScore;
+  protocol_compatibility: DimensionScore;
+  testing_readiness: DimensionScore;
+  checklist: string[];
+}
+
+export interface RoadmapStep {
+  step_number: number;
+  title: string;
+  description: string;
+  estimated_effort: string;
+  completed: boolean;
+}
+
+export interface MigrationRecord {
+  asset_id: string;
+  current_state: string;
+  last_updated: string;
+  history: Array<Record<string, any>>;
+  notes?: string | null;
+}
+
+export interface MigrationIntelligence {
+  recommendation: MigrationRecommendation;
+  readiness: MigrationReadiness;
+  migration_priority: string;
+  lifecycle_record: MigrationRecord;
+  roadmap: RoadmapStep[];
+}
+
+export interface SimulationResult {
+  asset_id: string;
+  current_algorithm: string;
+  candidate_algorithm: string;
+  candidate_pqc_info?: Record<string, any> | null;
+  projected_security_posture: string;
+  projected_quantum_risk: string;
+  key_size_delta_bytes: number;
+  ciphertext_or_sig_delta_bytes: number;
+  bandwidth_latency_impact: string;
+  compatibility_risk: string;
+  remaining_uncertainties: string[];
+  simulation_disclaimer: string;
+}
+
 export interface Finding {
   finding_id: string;
   algorithm: string;
@@ -159,6 +252,7 @@ export interface Finding {
   risk: RiskAssessment;
   context?: AssetContext;
   quantum_risk_intelligence?: QuantumRiskIntelligence;
+  migration_intelligence?: MigrationIntelligence;
 }
 
 export interface ScanSummary {
@@ -175,6 +269,9 @@ export interface ScanSummary {
   mosca_urgency_counts?: Record<string, number>;
   priority_counts?: Record<string, number>;
   unknown_context_count?: number;
+  migration_priority_counts?: Record<string, number>;
+  migration_type_counts?: Record<string, number>;
+  readiness_state_counts?: Record<string, number>;
 }
 
 export interface ScanMetadata {
