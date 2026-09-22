@@ -137,3 +137,28 @@ def test_invalid_scan_then_successful_scan(temp_repo):
 
     summary_resp = client.get("/api/v1/risk/summary")
     assert summary_resp.status_code == 200
+
+
+def test_restore_latest_scan_endpoints(temp_repo):
+    # 1. Successful scan
+    resp1 = client.post("/api/v1/scan", json={"target_path": str(temp_repo)})
+    assert resp1.status_code == 200
+
+    # 2. Latest scan endpoint restores latest successful scan
+    latest_resp = client.get("/api/v1/scan/latest")
+    assert latest_resp.status_code == 200
+    assert latest_resp.json()["status"] == "ok"
+    assert latest_resp.json()["scan"]["summary"]["total_crypto_assets"] >= 2
+
+    # 3. Subsequent failed scan causes latest scan to return no_active_scan (no stale restoration)
+    failed_resp = client.post("/api/v1/scan", json={"target_path": "/invalid/path/for/restore/test"})
+    assert failed_resp.status_code == 400
+
+    latest_resp_after_fail = client.get("/api/v1/scan/latest")
+    assert latest_resp_after_fail.status_code == 200
+    assert latest_resp_after_fail.json()["status"] == "no_active_scan"
+    assert latest_resp_after_fail.json()["scan"] is None
+
+    # 4. Inventory history remains intact
+    inv_resp = client.get("/api/v1/inventory")
+    assert inv_resp.json()["total_assets"] >= 2

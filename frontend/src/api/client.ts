@@ -48,6 +48,8 @@ import type { ScanRequest, ScanResponse, SimulationResult, PostureResponse, Post
 export const scanApi = {
   getHealth: () => fetchClient<{ status: string }>('/health'),
   getVersion: () => fetchClient<{ version: string }>('/version'),
+  getLatestScan: () => fetchClient<{ status: string; scan: ScanResponse | null }>('/api/v1/scan/latest'),
+
   runScan: (request: ScanRequest) =>
     fetchClient<ScanResponse>('/api/v1/scan', {
       method: 'POST',

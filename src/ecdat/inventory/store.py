@@ -390,11 +390,36 @@ class InventoryStore:
                 error_count=r["error_count"],
             )
 
+    def get_most_recent_scan(self, repo_id: str) -> Optional[ScanRecord]:
+        with get_db_context(self.db_path) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT * FROM scans WHERE repository_id = ? ORDER BY started_at DESC LIMIT 1;",
+                (repo_id,),
+            )
+            r = cur.fetchone()
+            if not r:
+                return None
+            return ScanRecord(
+                id=r["id"],
+                repository_id=r["repository_id"],
+                started_at=r["started_at"],
+                completed_at=r["completed_at"],
+                status=ScanStatus(r["status"]),
+                commit_sha=r["commit_sha"],
+                branch=r["branch"],
+                scanner_version=r["scanner_version"],
+                source_type=r["source_type"],
+                asset_count=r["asset_count"],
+                error_count=r["error_count"],
+            )
+
     def get_scan_observations(self, scan_id: str) -> List[Dict[str, Any]]:
         with get_db_context(self.db_path) as conn:
             cur = conn.cursor()
             query = """
-            SELECT o.*, a.algorithm, a.category, a.purpose, a.language, a.library, a.key_length,
+            SELECT o.*, a.algorithm, a.category, a.purpose, a.language, a.library, a.key_length, a.mode, a.padding,
+                   a.evidence_json, a.certificate_metadata_json, a.key_metadata_json, a.confidence,
                    r.overall_priority, r.technical_quantum_risk, r.hndl_status, r.mosca_urgency,
                    m.recommendation_type, m.target_algorithm, m.readiness_state, m.lifecycle_state, m.migration_priority
             FROM observations o
@@ -405,6 +430,7 @@ class InventoryStore:
             """
             cur.execute(query, (scan_id,))
             return [dict(r) for r in cur.fetchall()]
+
 
     def mark_absent_observations(self, repo_id: str, scan_id: str, active_asset_ids: List[str]) -> None:
         with get_db_context(self.db_path) as conn:

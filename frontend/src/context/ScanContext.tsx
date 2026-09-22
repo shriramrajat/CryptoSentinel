@@ -26,6 +26,25 @@ export const ScanProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [languageFilters, setLanguageFilters] = useState<string[]>([]);
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
 
+  React.useEffect(() => {
+    checkHealth();
+    restoreLatestScan();
+  }, []);
+
+  const restoreLatestScan = async () => {
+    try {
+      const res = await scanApi.getLatestScan();
+      if (res.status === 'ok' && res.scan && !isScanning) {
+        setScanResponse(res.scan);
+        if (res.scan.target_path) {
+          setTargetPath(res.scan.target_path);
+        }
+      }
+    } catch {
+      // Quietly ignore restore errors
+    }
+  };
+
   const checkHealth = async () => {
     try {
       const res = await scanApi.getHealth();
@@ -34,6 +53,7 @@ export const ScanProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setBackendOnline(false);
     }
   };
+
 
   const executeScan = async (pathOverride?: string) => {
     const path = (pathOverride !== undefined ? pathOverride : targetPath).trim();

@@ -40,10 +40,12 @@ from ecdat.inventory.models import (
     Project,
     Repository,
     ScanSchedule,
+    ScanStatus,
     AlertStatus,
     AlertSeverity,
     AlertType,
 )
+
 
 router = APIRouter()
 inventory_store = InventoryStore()
@@ -198,11 +200,138 @@ def scan_endpoint(request: ScanRequest) -> dict:
         _LATEST_SCAN_CACHE["findings"] = {
             f["finding_id"]: f for f in result.get("findings", [])
         }
+        _LATEST_SCAN_CACHE["full_result"] = result
 
         return result
     except Exception as exc:
         _LATEST_SCAN_CACHE.clear()
         raise exc
+
+
+@router.get("/api/v1/scan/latest")
+def get_latest_scan_endpoint() -> dict:
+    """Get the latest active/persisted successful scan result for UI restoration after refresh."""
+    org_id, proj_id, repo_id = inventory_store.get_or_create_default_hierarchy()
+
+    latest_scan = inventory_store.get_most_recent_scan(repo_id)
+    if not latest_scan or latest_scan.status != ScanStatus.COMPLETED:
+        return {"status": "no_active_scan", "scan": None}
+
+    # If full_result is in memory cache and matches latest scan_id, use it
+    if _LATEST_SCAN_CACHE.get("full_result"):
+        full_res = _LATEST_SCAN_CACHE["full_result"]
+        inv_meta = full_res.get("inventory_metadata", {})
+        if inv_meta.get("scan_id") == latest_scan.id:
+            return {"status": "ok", "scan": full_res}
+
+    # Otherwise reconstruct from database
+    obs_list = inventory_store.get_scan_observations(latest_scan.id)
+    findings = []
+    target_path_found = None
+    for o in obs_list:
+        asset_id = o["asset_id"]
+        evidence = {}
+        if o.get("evidence_json"):
+            try:
+                evidence = json.loads(o["evidence_json"])
+            except Exception:
+                evidence = {}
+
+        src_path = o.get("source_path", "unknown")
+        line_no = o.get("line_number", 1)
+
+        if not evidence.get("file_path"):
+            evidence["file_path"] = src_path
+        if not evidence.get("line_number"):
+            evidence["line_number"] = line_no
+
+        if not target_path_found and src_path and src_path != "unknown":
+            target_path_found = str(Path(src_path).parent)
+
+        cert_meta = json.loads(o["certificate_metadata_json"]) if o.get("certificate_metadata_json") else None
+        key_meta = json.loads(o["key_metadata_json"]) if o.get("key_metadata_json") else None
+
+        finding = {
+            "finding_id": asset_id,
+            "algorithm": o.get("algorithm", "UNKNOWN"),
+            "category": o.get("category", "symmetric_encryption"),
+            "purpose": o.get("purpose"),
+            "language": o.get("language"),
+            "library": o.get("library"),
+            "key_length": o.get("key_length"),
+            "mode": o.get("mode"),
+            "padding": o.get("padding"),
+            "file_location": {
+                "file_path": src_path,
+                "line_number": line_no,
+            },
+            "evidence": evidence,
+            "risk": {
+                "severity": o.get("technical_quantum_risk", "medium"),
+                "reason": f"Priority: {o.get('overall_priority', 'MONITOR')}",
+                "confidence": o.get("confidence", 0.9),
+                "quantum_threat": "shor" if o.get("technical_quantum_risk") in ["critical", "high"] else "none",
+                "pqc_recommendation": o.get("target_algorithm") or "Follow NIST PQC guidelines",
+            },
+            "quantum_risk_intelligence": {
+                "technical_quantum_risk": o.get("technical_quantum_risk", "medium"),
+                "business_urgency": "medium",
+                "overall_priority": o.get("overall_priority", "MONITOR"),
+                "hndl_assessment": {"status": o.get("hndl_status", "NOT_APPLICABLE")},
+                "lifecycle_assessment": {"urgency": o.get("mosca_urgency", "LOW")},
+            },
+            "migration_intelligence": {
+                "recommendation": {
+                    "migration_type": o.get("recommendation_type", "DIRECT"),
+                    "target_algorithm": o.get("target_algorithm", ""),
+                },
+                "readiness": {"state": o.get("readiness_state", "UNKNOWN")},
+                "migration_priority": o.get("migration_priority", "LOW"),
+                "lifecycle_record": {"current_state": o.get("lifecycle_state", "DISCOVERED")},
+            },
+            "certificate_metadata": cert_meta,
+            "key_metadata": key_meta,
+        }
+        findings.append(finding)
+
+    total_assets = len(findings)
+    quantum_vulnerable = sum(1 for f in findings if f["risk"]["quantum_threat"] != "none")
+    alg_dist = {}
+    for f in findings:
+        alg = f["algorithm"]
+        alg_dist[alg] = alg_dist.get(alg, 0) + 1
+
+    reconstructed_result = {
+        "summary": {
+            "total_files_scanned": len(set(f["file_location"]["file_path"] for f in findings)),
+            "total_crypto_assets": total_assets,
+            "quantum_vulnerable_assets": quantum_vulnerable,
+            "algorithm_distribution": alg_dist,
+        },
+        "metadata": {
+            "scan_duration_ms": 100,
+            "scanner_version": latest_scan.scanner_version or "0.2.0",
+            "target_path": target_path_found or "persisted_inventory",
+        },
+        "findings": findings,
+        "errors": [],
+        "skipped_files": [],
+        "target_path": target_path_found or "persisted_inventory",
+        "inventory_metadata": {
+            "scan_id": latest_scan.id,
+            "repository_id": repo_id,
+            "total_active_assets": total_assets,
+        },
+    }
+
+    # Populate in-memory cache
+    _LATEST_SCAN_CACHE["summary"] = reconstructed_result["summary"]
+    _LATEST_SCAN_CACHE["metadata"] = reconstructed_result["metadata"]
+    _LATEST_SCAN_CACHE["findings"] = {f["finding_id"]: f for f in findings}
+    _LATEST_SCAN_CACHE["full_result"] = reconstructed_result
+
+    return {"status": "ok", "scan": reconstructed_result}
+
 
 
 

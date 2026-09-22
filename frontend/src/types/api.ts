@@ -278,6 +278,7 @@ export interface ScanMetadata {
   scan_duration_ms: number;
   scanner_version: string;
   policy?: Record<string, any>;
+  target_path?: string;
 }
 
 export interface ScanResponse {
@@ -286,6 +287,7 @@ export interface ScanResponse {
   errors: Array<{ file: string; error: string }>;
   skipped_files: Array<{ file: string; reason: string }>;
   metadata: ScanMetadata;
+  target_path?: string;
   inventory_metadata?: {
     scan_id: string;
     repository_id: string;
@@ -294,6 +296,7 @@ export interface ScanResponse {
     total_active_assets: number;
   };
 }
+
 
 export interface Organization {
   id: string;
