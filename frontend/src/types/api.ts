@@ -286,4 +286,137 @@ export interface ScanResponse {
   errors: Array<{ file: string; error: string }>;
   skipped_files: Array<{ file: string; reason: string }>;
   metadata: ScanMetadata;
+  inventory_metadata?: {
+    scan_id: string;
+    repository_id: string;
+    drift_events_count: number;
+    alerts_created_count: number;
+    total_active_assets: number;
+  };
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Project {
+  id: string;
+  organization_id: string;
+  name: string;
+  description?: string;
+  business_criticality: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Repository {
+  id: string;
+  project_id: string;
+  name: string;
+  provider: string;
+  url: string;
+  default_branch: string;
+  environment: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScanRecord {
+  id: string;
+  repository_id: string;
+  started_at: string;
+  completed_at?: string | null;
+  status: "IN_PROGRESS" | "COMPLETED" | "FAILED";
+  commit_sha: string;
+  branch: string;
+  scanner_version: string;
+  source_type: string;
+  asset_count: number;
+  error_count: number;
+}
+
+export interface DriftEvent {
+  id: string;
+  repository_id: string;
+  scan_id: string;
+  asset_id: string;
+  type: "NEW_ASSET" | "REMOVED_ASSET" | "MODIFIED_ASSET" | "RISK_REGRESSION" | "RISK_IMPROVEMENT" | "MIGRATION_PROGRESS" | "MIGRATION_REGRESSION";
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO";
+  before_state: Record<string, any>;
+  after_state: Record<string, any>;
+  detected_at: string;
+  explanation: string;
+}
+
+export interface Alert {
+  id: string;
+  type: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  scope_type: string;
+  scope_id: string;
+  repository_id: string;
+  asset_id?: string | null;
+  message: string;
+  created_at: string;
+  updated_at: string;
+  status: "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
+  dedup_key: string;
+}
+
+export interface PostureResponse {
+  scope: {
+    organization_id?: string | null;
+    project_id?: string | null;
+    repository_id?: string | null;
+  };
+  totals: {
+    total_repositories: number;
+    total_scans: number;
+    total_crypto_assets: number;
+    unique_crypto_assets: number;
+    quantum_vulnerable_assets: number;
+    hndl_sensitive_assets: number;
+    critical_high_priority_assets: number;
+  };
+  migration_progress: {
+    ready_for_migration: number;
+    partially_ready: number;
+    not_ready: number;
+    currently_migrating: number;
+    migrated_assets: number;
+  };
+  distributions: {
+    priority_counts: Record<string, number>;
+    severity_counts: Record<string, number>;
+    hndl_counts: Record<string, number>;
+  };
+  monitoring: {
+    open_drift_events_count: number;
+    active_alerts_count: number;
+    unresolved_high_risk_alerts_count: number;
+  };
+}
+
+export interface PostureTrend {
+  scan_id: string;
+  repository_id: string;
+  timestamp: string;
+  total_crypto_assets: number;
+  quantum_vulnerable_count: number;
+  high_priority_count: number;
+  migrated_count: number;
+}
+
+export interface ScanSchedule {
+  id: string;
+  repository_id: string;
+  enabled: boolean;
+  interval_hours: number;
+  next_run_at: string;
+  last_run_at?: string | null;
+  created_at: string;
+  updated_at: string;
 }
