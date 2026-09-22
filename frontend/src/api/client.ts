@@ -43,7 +43,7 @@ export async function fetchClient<T>(
   return response.json();
 }
 
-import type { ScanRequest, ScanResponse, SimulationResult } from '../types/api';
+import type { ScanRequest, ScanResponse, SimulationResult, PostureResponse, PostureTrend, Alert, ScanSchedule } from '../types/api';
 
 export const scanApi = {
   getHealth: () => fetchClient<{ status: string }>('/health'),
@@ -93,4 +93,37 @@ export const scanApi = {
       method: 'PATCH',
       body: JSON.stringify({ new_state, notes }),
     }),
+
+  // Phase 4 Endpoints
+  getOrganizations: () =>
+    fetchClient<{ organizations: any[] }>('/api/v1/organizations'),
+  getProjects: (organization_id?: string) =>
+    fetchClient<{ projects: any[] }>(`/api/v1/projects${organization_id ? `?organization_id=${organization_id}` : ''}`),
+  getRepositories: (project_id?: string) =>
+    fetchClient<{ repositories: any[] }>(`/api/v1/repositories${project_id ? `?project_id=${project_id}` : ''}`),
+  getInventory: (repository_id?: string) =>
+    fetchClient<{ total_assets: number; assets: any[] }>(`/api/v1/inventory${repository_id ? `?repository_id=${repository_id}` : ''}`),
+  getInventoryAssetDetail: (asset_id: string) =>
+    fetchClient<any>(`/api/v1/inventory/assets/${asset_id}`),
+  getDriftEvents: (repository_id?: string) =>
+    fetchClient<{ total_drift_events: number; drift_events: any[] }>(`/api/v1/drift${repository_id ? `?repository_id=${repository_id}` : ''}`),
+  getPosture: (repository_id?: string) =>
+    fetchClient<PostureResponse>(`/api/v1/posture${repository_id ? `/repository/${repository_id}` : ''}`),
+  getPostureTrends: (repository_id?: string) =>
+    fetchClient<{ trends: PostureTrend[] }>(`/api/v1/posture/trends${repository_id ? `?repository_id=${repository_id}` : ''}`),
+  getAlerts: (repository_id?: string, status?: string, severity?: string) => {
+    const params = new URLSearchParams();
+    if (repository_id) params.append('repository_id', repository_id);
+    if (status) params.append('status', status);
+    if (severity) params.append('severity', severity);
+    const query = params.toString();
+    return fetchClient<{ total_alerts: number; alerts: Alert[] }>(`/api/v1/alerts${query ? `?${query}` : ''}`);
+  },
+  updateAlertStatus: (alert_id: string, status: string) =>
+    fetchClient<{ status: string; alert: Alert }>(`/api/v1/alerts/${alert_id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  getSchedules: (repository_id?: string) =>
+    fetchClient<{ schedules: ScanSchedule[] }>(`/api/v1/schedules${repository_id ? `?repository_id=${repository_id}` : ''}`),
 };
