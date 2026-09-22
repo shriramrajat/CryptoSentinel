@@ -31,6 +31,41 @@ class LifecycleUpdateRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class OrganizationCreateRequest(BaseModel):
+    name: str = Field(..., description="Enterprise organization name.")
+
+
+class ProjectCreateRequest(BaseModel):
+    organization_id: str = Field(..., description="Parent organization ID.")
+    name: str = Field(..., description="Project name.")
+    description: Optional[str] = None
+    business_criticality: Optional[str] = "high"
+
+
+class RepositoryCreateRequest(BaseModel):
+    project_id: str = Field(..., description="Parent project ID.")
+    name: str = Field(..., description="Repository name.")
+    provider: Optional[str] = "git"
+    url: Optional[str] = ""
+    default_branch: Optional[str] = "main"
+    environment: Optional[str] = "production"
+
+
+class AlertPatchRequest(BaseModel):
+    status: str = Field(..., description="Target alert status: 'ACKNOWLEDGED' or 'RESOLVED'.")
+
+
+class ScheduleCreateRequest(BaseModel):
+    repository_id: str = Field(..., description="Target repository ID.")
+    enabled: Optional[bool] = True
+    interval_hours: Optional[int] = 24
+
+
+class SchedulePatchRequest(BaseModel):
+    enabled: Optional[bool] = None
+    interval_hours: Optional[int] = None
+
+
 class ErrorDetail(BaseModel):
     code: str
     message: str
