@@ -305,6 +305,35 @@ class Scanner:
             return "config"
         return language
 
+    @staticmethod
+    def _deduplicate_assets(assets: List[CryptoAsset]) -> List[CryptoAsset]:
+        """
+        Deduplicates assets on the same line with the same algorithm,
+        preferring the hit with higher confidence or richer metadata.
+        """
+        grouped: Dict[tuple, List[CryptoAsset]] = {}
+        for a in assets:
+            key = (a.line_number, a.algorithm.upper())
+            grouped.setdefault(key, []).append(a)
+
+        deduped: List[CryptoAsset] = []
+        for key, group in grouped.items():
+            if len(group) == 1:
+                deduped.append(group[0])
+            else:
+                sorted_group = sorted(
+                    group,
+                    key=lambda x: (
+                        x.confidence,
+                        1 if (x.key_length is not None or x.mode is not None) else 0,
+                        0 if (x.detection_rule and x.detection_rule.startswith("generic-")) else 1,
+                    ),
+                    reverse=True,
+                )
+                deduped.append(sorted_group[0])
+
+        return sorted(deduped, key=lambda x: x.line_number)
+
     def scan_file_regex(
         self,
         file_path: Path,
@@ -531,32 +560,7 @@ class Scanner:
                             pass
 
                     # Preserve backward-compatible rule IDs for legacy tests
-                    rule_id_used = rule.rule_id
-                    # Map legacy scanners that stored old rule IDs
-                    _LEGACY_COMPAT = {
-                        "PY-PYCRYPTO-RSA-GENERATE-001": "py-crypto-rsa-gen",
-                        "PY-PYCRYPTO-AES-NEW-001": "py-crypto-aes-new",
-                        "JAVA-JCE-CIPHER-001": "java-cipher-instance",
-                        "JAVA-JCE-KEYPAIRGEN-001": "java-keypair-gen",
-                        "JAVA-JCE-MESSAGEDIGEST-001": "java-message-digest",
-                        "JAVA-JCE-SIGNATURE-001": "java-signature-instance",
-                        "JAVA-JCE-KEYAGREEMENT-001": "java-keyagreement-instance",
-                        "JAVA-HARDCODED-SECRET-001": "java-hardcoded-secret-string",
-                        "C-OPENSSL-RSA-GENERATE-001": "c-openssl-rsa-gen",
-                        "C-OPENSSL-AES128-CBC-001": "c-openssl-evp-aes128-cbc",
-                        "C-OPENSSL-AES256-GCM-001": "c-openssl-evp-aes256-gcm",
-                        "C-OPENSSL-SHA256-001": "c-openssl-evp-sha256",
-                        "C-OPENSSL-SHA1-001": "c-openssl-evp-sha1",
-                        "C-OPENSSL-MD5-001": "c-openssl-evp-md5",
-                        "C-OPENSSL-EC-NEW-001": "c-openssl-ec-new",
-                        "C-OPENSSL-DH-NEW-001": "c-openssl-dh-new",
-                        "C-OPENSSL-DSA-NEW-001": "c-openssl-dsa-new",
-                        "C-HARDCODED-SECRET-001": "c-hardcoded-secret-string",
-                        "PEM-RSA-PRIVATE-KEY-001": "pem-rsa-private-key",
-                        "PEM-EC-PRIVATE-KEY-001": "pem-ec-private-key",
-                        "PEM-CERTIFICATE-001": "pem-certificate",
-                    }
-                    matched_rule_id = _LEGACY_COMPAT.get(rule.rule_id, rule.rule_id)
+                    matched_rule_id = rule.rule_id
 
                     asset = CryptoAsset.create(
                         name=f"{algorithm} Detection ({library})",
@@ -580,7 +584,7 @@ class Scanner:
                     )
                     assets.append(asset)
 
-        return assets
+        return self._deduplicate_assets(assets)
 
     def scan_file(
         self,
@@ -621,9 +625,9 @@ class Scanner:
             filtered_regex_assets = [
                 r for r in regex_assets if (r.line_number, r.algorithm) not in ast_lines_algos
             ]
-            return ast_assets + filtered_regex_assets
+            return self._deduplicate_assets(ast_assets + filtered_regex_assets)
 
-        return regex_assets
+        return self._deduplicate_assets(regex_assets)
 
     def scan(self, target_path: Union[str, Path]) -> List[CryptoAsset]:
         """Scan target directory or file and return normalized CryptoAssets."""

@@ -19,12 +19,20 @@ def normalize_relative_path(file_path: Union[str, Path], root_dir: Optional[Unio
     if root_dir:
         try:
             root_abs = Path(root_dir).resolve()
-            path_abs = path.resolve()
+            path_abs = path if path.is_absolute() else (root_abs / path)
+            path_abs = path_abs.resolve()
             return path_abs.relative_to(root_abs).as_posix()
         except ValueError:
             pass
 
-    # 2. Try relative to Current Working Directory (CWD)
+    # 2. If path is already relative, return normalized posix path
+    if not path.is_absolute():
+        p_str = path.as_posix()
+        if p_str.startswith("./"):
+            p_str = p_str[2:]
+        return p_str
+
+    # 3. Try relative to Current Working Directory (CWD)
     try:
         cwd = Path.cwd().resolve()
         path_abs = path.resolve()
@@ -32,7 +40,7 @@ def normalize_relative_path(file_path: Union[str, Path], root_dir: Optional[Unio
     except ValueError:
         pass
 
-    # 3. Fallback to posix path
+    # 4. Fallback to posix path
     return path.as_posix()
 
 
