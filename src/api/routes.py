@@ -12,6 +12,10 @@ from .schemas import (
     ScheduleCreateRequest,
     SchedulePatchRequest,
     ErrorResponse,
+    AdvancedDiscoveryRequest,
+    GitCompareRequest,
+    CopilotQueryRequest,
+    CopilotEvidenceRequest,
 )
 from .config import settings
 from ecdat.service import ScanService, ScannerError, AnalysisError, _LIFECYCLE_RECORD_STORE
@@ -20,6 +24,12 @@ from ecdat.config_policy import RiskPolicyConfig
 from ecdat.models import CryptoAsset
 from ecdat.migration_lifecycle import LifecycleState, MigrationRecord, generate_migration_roadmap
 from ecdat.migration_simulator import simulate_migration
+from ecdat.discovery import DiscoveryRegistry
+from ecdat.phase5_graph import CryptoGraph
+from ecdat.phase5_git import GitInspector
+from ecdat.phase5_query import SecurityQueryEngine
+from ecdat.phase5_copilot import EvidenceCopilot
+from ecdat.phase5_inventory import AdvancedDiscoveryInventoryAdapter
 
 from ecdat.inventory.orchestrator import EnterpriseScanOrchestrator
 from ecdat.inventory.store import InventoryStore
@@ -40,11 +50,60 @@ inventory_store = InventoryStore()
 # Global memory cache for the latest scan result to serve asset-level GET endpoints
 _LATEST_SCAN_CACHE: Dict[str, Any] = {}
 _USER_CONTEXT_STORE: Dict[str, Dict[str, Any]] = {}
+_DISCOVERY_REGISTRY = DiscoveryRegistry()
+_QUERY_ENGINE = SecurityQueryEngine()
+_COPILOT = EvidenceCopilot()
 
 
 @router.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@router.post("/api/v1/discovery/{source_type}")
+def advanced_discovery_endpoint(source_type: str, request: AdvancedDiscoveryRequest) -> dict:
+    """Run one bounded advanced discovery adapter; artifacts are never executed."""
+    if source_type.lower() not in {"binary", "container", "dependency", "protocol"}:
+        raise HTTPException(status_code=400, detail="Unsupported discovery source")
+    try:
+        result = _DISCOVERY_REGISTRY.scan(source_type, request.path)
+        payload = result.to_dict()
+        if request.repo_id:
+            payload["inventory"] = AdvancedDiscoveryInventoryAdapter(inventory_store).ingest(
+                result, request.repo_id, request.repo_name or "default-repo", request.org_id or "default-org", request.project_id or "default-project"
+            )
+        return payload
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/api/v1/graph")
+def get_phase5_graph() -> dict:
+    return CryptoGraph(inventory_store).to_dict()
+
+
+@router.get("/api/v1/query")
+def query_phase5_inventory(q: str, page: int = 1, page_size: int = 50, repo_id: Optional[str] = None) -> dict:
+    assets = inventory_store.get_canonical_assets(repo_id=repo_id)
+    return _QUERY_ENGINE.execute(q, assets, inventory_store.get_certificates(repo_id=repo_id), page=page, page_size=page_size, repo_id=repo_id)
+
+
+@router.post("/api/v1/git/compare")
+def compare_git_commits(request: GitCompareRequest) -> dict:
+    try:
+        return GitInspector().compare(request.repository, request.baseline, request.current)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/api/v1/copilot/query")
+def copilot_query(request: CopilotQueryRequest) -> dict:
+    return _COPILOT.query(request.prompt, inventory_store.get_canonical_assets(repo_id=None))
+
+
+@router.post("/api/v1/copilot/explain")
+def copilot_explain(finding: CopilotEvidenceRequest) -> dict:
+    return _COPILOT.explain(finding.model_dump(exclude_none=True))
 
 
 @router.get("/version")

@@ -195,6 +195,22 @@ CREATE TABLE IF NOT EXISTS scan_schedules (
     FOREIGN KEY (repository_id) REFERENCES repositories(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS crypto_graph_nodes (
+    node_id TEXT PRIMARY KEY,
+    node_type TEXT NOT NULL,
+    label TEXT NOT NULL,
+    metadata_json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS crypto_graph_relationships (
+    relationship_id TEXT PRIMARY KEY,
+    source_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    relationship_type TEXT NOT NULL,
+    metadata_json TEXT NOT NULL,
+    UNIQUE(source_id, target_id, relationship_type)
+);
+
 CREATE INDEX IF NOT EXISTS idx_projects_org ON projects(organization_id);
 CREATE INDEX IF NOT EXISTS idx_repos_project ON repositories(project_id);
 CREATE INDEX IF NOT EXISTS idx_scans_repo ON scans(repository_id);

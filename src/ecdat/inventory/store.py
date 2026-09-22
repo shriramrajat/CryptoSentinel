@@ -752,3 +752,40 @@ class InventoryStore:
                 (1 if sched.enabled else 0, sched.interval_hours, sched.updated_at, sched.id),
             )
         return sched
+
+    # --------------------------------------------------------------------------
+    # Cryptographic Dependency Graph (Phase 5)
+    # --------------------------------------------------------------------------
+    def upsert_graph_node(self, node: Dict[str, Any]) -> None:
+        with get_db_context(self.db_path) as conn:
+            conn.execute(
+                """INSERT INTO crypto_graph_nodes (node_id, node_type, label, metadata_json)
+                   VALUES (?, ?, ?, ?) ON CONFLICT(node_id) DO UPDATE SET metadata_json=excluded.metadata_json;""",
+                (node["node_id"], node["node_type"], node["label"], json.dumps(node.get("metadata", {})))
+            )
+
+    def get_graph_nodes(self) -> List[Dict[str, Any]]:
+        with get_db_context(self.db_path) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM crypto_graph_nodes;")
+            return [{**dict(row), "metadata": json.loads(row["metadata_json"])} for row in cur.fetchall()]
+
+    def upsert_graph_relationship(self, relationship: Dict[str, Any]) -> None:
+        with get_db_context(self.db_path) as conn:
+            conn.execute(
+                """INSERT INTO crypto_graph_relationships (relationship_id, source_id, target_id, relationship_type, metadata_json)
+                   VALUES (?, ?, ?, ?, ?) ON CONFLICT(source_id, target_id, relationship_type) DO UPDATE SET metadata_json=excluded.metadata_json;""",
+                (relationship["relationship_id"], relationship["source_id"], relationship["target_id"], relationship["relationship_type"], json.dumps(relationship.get("metadata", {})))
+            )
+
+    def get_graph_relationships(self) -> List[Dict[str, Any]]:
+        with get_db_context(self.db_path) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM crypto_graph_relationships;")
+            return [{**dict(row), "metadata": json.loads(row["metadata_json"])} for row in cur.fetchall()]
+
+    def get_canonical_assets(self, repo_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        return self.get_inventory_assets(repo_id=repo_id)
+
+    def get_certificates(self, repo_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        return []

@@ -7,6 +7,7 @@ import FindingsPage from './pages/FindingsPage';
 import QuantumPage from './pages/QuantumPage';
 import MigrationPage from './pages/MigrationPage';
 import { InventoryPage } from './pages/InventoryPage';
+import AdvancedDiscoveryPage from './pages/AdvancedDiscoveryPage';
 import DiagnosticsPage from './pages/DiagnosticsPage';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="/quantum" element={<QuantumPage />} />
           <Route path="/migration" element={<MigrationPage />} />
           <Route path="/enterprise-inventory" element={<InventoryPage />} />
+          <Route path="/discovery" element={<AdvancedDiscoveryPage />} />
           <Route path="/diagnostics" element={<DiagnosticsPage />} />
         </Routes>
       </AppLayout>

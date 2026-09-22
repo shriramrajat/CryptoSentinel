@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 
@@ -64,6 +64,32 @@ class ScheduleCreateRequest(BaseModel):
 class SchedulePatchRequest(BaseModel):
     enabled: Optional[bool] = None
     interval_hours: Optional[int] = None
+
+
+class AdvancedDiscoveryRequest(BaseModel):
+    path: str
+    repo_id: Optional[str] = None
+    repo_name: str = "default-repo"
+    org_id: str = "default-org"
+    project_id: str = "default-project"
+
+
+class GitCompareRequest(BaseModel):
+    repository: str
+    baseline: str = "HEAD~1"
+    current: str = "HEAD"
+
+
+class CopilotQueryRequest(BaseModel):
+    prompt: str = Field(..., min_length=1, max_length=300)
+
+
+class CopilotEvidenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    asset_id: Optional[str] = Field(default=None, max_length=128)
+    algorithm: Optional[str] = Field(default=None, max_length=128)
+    evidence: Optional[str] = Field(default=None, max_length=4000)
+    context: Optional[Dict[str, Any]] = None
 
 
 class ErrorDetail(BaseModel):
