@@ -9,6 +9,7 @@ import MigrationPage from './pages/MigrationPage';
 import { InventoryPage } from './pages/InventoryPage';
 import AdvancedDiscoveryPage from './pages/AdvancedDiscoveryPage';
 import DiagnosticsPage from './pages/DiagnosticsPage';
+import CompliancePage from './pages/CompliancePage';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="/enterprise-inventory" element={<InventoryPage />} />
           <Route path="/discovery" element={<AdvancedDiscoveryPage />} />
           <Route path="/diagnostics" element={<DiagnosticsPage />} />
+          <Route path="/compliance" element={<CompliancePage />} />
         </Routes>
       </AppLayout>
     </ScanProvider>

@@ -1,0 +1,7 @@
+[package]
+name = "demo-app"
+version = "0.1.0"
+
+[dependencies]
+ring = "0.17"
+rustls = "0.21"

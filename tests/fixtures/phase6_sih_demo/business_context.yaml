@@ -1,0 +1,12 @@
+# SIH demo business context
+organization: "Demo Enterprise"
+criticality: high
+data_lifetime_years: 10
+migration_lead_time_years: 3
+quantum_horizon_years: 10
+sensitive_data_types:
+  - financial
+  - pii
+environments:
+  - production
+  - staging

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from .config import settings
 from .routes import router
+from .routes_compliance import router_compliance
 from .errors import (
     value_error_handler,
     scanner_error_handler,
@@ -13,7 +14,7 @@ from ecdat.service import AnalysisError, ScannerError
 app = FastAPI(
     title=settings.app_name,
     version=settings.version,
-    description="Scan source repositories for cryptographic assets and assess post-quantum migration risk.",
+    description="Enterprise Cryptographic Discovery & Analysis Tool (ECDAT) — SIH26164.",
 )
 
 # Configure CORS
@@ -23,11 +24,12 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 
 app.include_router(router)
+app.include_router(router_compliance)
 
 app.add_exception_handler(ValueError, value_error_handler)
 app.add_exception_handler(ScannerError, scanner_error_handler)
