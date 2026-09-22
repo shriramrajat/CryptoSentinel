@@ -2,7 +2,7 @@
 Internal Data Models for ECDAT Cryptographic Asset Discovery.
 """
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, field, asdict
 from typing import Optional, Dict, Any, Union
 from pathlib import Path
 import hashlib
@@ -40,8 +40,43 @@ def normalize_relative_path(file_path: Union[str, Path], root_dir: Optional[Unio
 class Evidence:
     """Structured evidence for a discovered cryptographic asset."""
     code_snippet: str
-    detection_mechanism: str  # 'ast', 'regex', 'pem_header'
+    detection_mechanism: str  # 'ast', 'regex', 'pem_header', 'x509_parse'
     matched_rule_id: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class CertificateMetadata:
+    """Structured metadata for X.509 certificates (no private key material stored)."""
+    subject: Optional[str] = None
+    issuer: Optional[str] = None
+    serial_number: Optional[str] = None
+    not_before: Optional[str] = None
+    not_after: Optional[str] = None
+    signature_algorithm: Optional[str] = None
+    public_key_algorithm: Optional[str] = None
+    public_key_size: Optional[int] = None
+    subject_alt_names: Optional[list] = None
+    fingerprint_sha256: Optional[str] = None
+    is_expired: Optional[bool] = None
+    is_weak_sig: Optional[bool] = None
+    is_weak_key: Optional[bool] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        if self.subject_alt_names is None:
+            d["subject_alt_names"] = []
+        return d
+
+
+@dataclass
+class KeyMetadata:
+    """Metadata for cryptographic key files (raw private key material is never stored)."""
+    key_type: Optional[str] = None
+    key_size: Optional[int] = None
+    private_material: str = "not_stored"
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -60,9 +95,19 @@ class CryptoAsset:
     library: str
     confidence: float
     evidence: Evidence
+
+    # Optional algorithm parameters
     key_length: Optional[int] = None
     mode: Optional[str] = None
     padding: Optional[str] = None
+
+    # Phase 1 extended context fields (all backward-compatible optional fields)
+    purpose: Optional[str] = None          # e.g. 'encryption', 'signing', 'hashing', 'key_generation', 'unknown'
+    protocol: Optional[str] = None         # e.g. 'TLS', 'SSH', 'JWT'
+    crypto_role: Optional[str] = None      # e.g. 'primitive', 'protocol', 'key', 'certificate'
+    detection_rule: Optional[str] = None   # Stable rule ID used for detection
+    certificate_metadata: Optional[CertificateMetadata] = None
+    key_metadata: Optional[KeyMetadata] = None
 
     @property
     def code_snippet(self) -> str:
@@ -89,6 +134,12 @@ class CryptoAsset:
         padding: Optional[str] = None,
         asset_id: Optional[str] = None,
         root_dir: Optional[Union[str, Path]] = None,
+        purpose: Optional[str] = None,
+        protocol: Optional[str] = None,
+        crypto_role: Optional[str] = None,
+        detection_rule: Optional[str] = None,
+        certificate_metadata: Optional[CertificateMetadata] = None,
+        key_metadata: Optional[KeyMetadata] = None,
     ) -> "CryptoAsset":
         norm_path = normalize_relative_path(file_path, root_dir=root_dir)
 
@@ -100,7 +151,12 @@ class CryptoAsset:
             )
 
         if not asset_id:
-            raw_key = f"{norm_path}:{line_number}:{algorithm.upper()}:{library.lower()}:{evidence.matched_rule_id}"
+            # Deterministic ID based on stable fields: path, line, algorithm, category, purpose, rule_id
+            normalized_purpose = (purpose or "unknown").lower()
+            raw_key = (
+                f"{norm_path}:{line_number}:{algorithm.upper()}:"
+                f"{category.lower()}:{normalized_purpose}:{evidence.matched_rule_id}"
+            )
             digest = hashlib.sha256(raw_key.encode("utf-8")).hexdigest()[:12]
             asset_id = f"crypto-{digest}"
 
@@ -118,9 +174,20 @@ class CryptoAsset:
             key_length=key_length,
             mode=mode,
             padding=padding,
+            purpose=purpose,
+            protocol=protocol,
+            crypto_role=crypto_role,
+            detection_rule=detection_rule or evidence.matched_rule_id,
+            certificate_metadata=certificate_metadata,
+            key_metadata=key_metadata,
         )
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
         d["code_snippet"] = self.code_snippet
+        # Flatten certificate/key metadata for easy consumption
+        if self.certificate_metadata is not None:
+            d["certificate_metadata"] = self.certificate_metadata.to_dict()
+        if self.key_metadata is not None:
+            d["key_metadata"] = self.key_metadata.to_dict()
         return d

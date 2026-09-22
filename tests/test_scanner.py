@@ -597,7 +597,7 @@ def test_detected_assets_include_required_evidence_fields():
     assert assets
     for asset in assets:
         assert asset.asset_id
-        assert asset.language in {"python", "java", "c", "pem"}
+        assert asset.language in {"python", "java", "c", "pem", "javascript", "typescript", "go", "rust", "php", "csharp", "kotlin", "config"}
         assert asset.file_path
         assert asset.line_number > 0
         assert asset.category

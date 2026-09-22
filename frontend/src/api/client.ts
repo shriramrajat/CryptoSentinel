@@ -53,5 +53,10 @@ export const scanApi = {
       method: 'POST',
       body: JSON.stringify(request),
     }),
+  exportCbom: (request: ScanRequest) =>
+    fetchClient<Record<string, any>>('/api/v1/cbom', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    }),
 };
 
