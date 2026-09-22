@@ -58,5 +58,19 @@ export const scanApi = {
       method: 'POST',
       body: JSON.stringify(request),
     }),
+  updateContext: (asset_id: string, context: Record<string, any>) =>
+    fetchClient<{ status: string; asset_id: string; context: any }>('/api/v1/context', {
+      method: 'POST',
+      body: JSON.stringify({ asset_id, context }),
+    }),
+  getAssetContext: (asset_id: string) =>
+    fetchClient<{ asset_id: string; context: any }>(`/api/v1/assets/${asset_id}/context`),
+  getAssetRisk: (asset_id: string) =>
+    fetchClient<any>(`/api/v1/assets/${asset_id}/risk`),
+  getRiskSummary: () =>
+    fetchClient<any>('/api/v1/risk/summary'),
+  getQuantumRisk: () =>
+    fetchClient<any>('/api/v1/risk/quantum'),
+  getHndlRisk: () =>
+    fetchClient<any>('/api/v1/risk/hndl'),
 };
-
